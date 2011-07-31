@@ -1,0 +1,7 @@
+#! /usr/local/bin/perl -w
+
+open my($fh), '|/usr/bin/pbcopy' or die $!;
+while (<>) {
+    tr/»«¥/ÈÇ\x{B4}/;
+    print {$fh} $_;
+}
