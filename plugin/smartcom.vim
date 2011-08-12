@@ -13,11 +13,20 @@ let loaded_smartcom = 1
 let s:save_cpo = &cpo
 set cpo&vim
 
-" Remap single <S-TAB> for smart completion on entire lines...
-inoremap <silent> <S-TAB> <c-r>=<SID>CompleteLine()<CR>
+"=====[ Interface ]=====================================================
 
-" Remap double <S-TAB> for smart completion on filenames...
+" Remap <TAB> for smart completion on various characters...
+inoremap <silent> <TAB>   <c-r>=<SID>Complete()<CR>
+
+" Remap single <S-TAB> for smart completion on padding...
+" That is: search the previous line for repeated punctuation and repeat it
+inoremap <silent> <S-TAB> <c-r><c-r>=<SID>CompletePadding()<CR>
+
+" Remap double <S-TAB> for smart completion on filepaths...
 inoremap <silent> <S-TAB><S-TAB> <c-r>=<SID>CompleteFile()<CR>
+
+
+"=====[ Implementation ]=====================================================
 
 function! <SID>CompleteLine ()
     " If already completing, keep completing; otherwise, start completing...
@@ -28,18 +37,44 @@ function! <SID>CompleteLine ()
     endif
 endfunction
 
+
 function! <SID>CompleteFile ()
     " If already completing, keep completing; otherwise, start completing...
     if pumvisible()
       return "\<C-P>"
     else
-      return "\<C-X>\<C-F>"
+        return "\<C-X>\<C-F>"
     endif
-
 endfunction
 
-" Remap <TAB> for smart completion on various characters...
-inoremap <silent> <TAB>   <c-r>=<SID>Complete()<CR>
+
+let s:PREVPADDING  = '.\{-}\(\A\&\D\&\S\)\1\+'
+let s:PREVSPACING  = '.\{-}\(\s\)\1\+'
+let s:PREVTEXTLINE = '\S.*\n\_.*\%#'
+
+function! <SID>CompletePadding ()
+    " Grab the necessary context...
+    let col = col('.')-1                " ...strings are zero-based
+    let prev_line_num = search(s:PREVTEXTLINE,'bnW')
+    let prev_line = getline(prev_line_num ? prev_line_num : line('.')-1)
+
+    " Work out what the previous line's padding is....
+    let padding = matchlist(prev_line, s:PREVPADDING, col)
+
+    " If no padding, then use spaces...
+    if empty(padding)
+        let padding = matchlist(prev_line, s:PREVSPACING, col)
+    endif
+
+    "If still no padding, give up...
+    if empty(padding)
+        return ""
+    endif
+
+    " Otherwise, return the appropriate amount of padding...
+    return repeat(padding[1], strlen(padding[0]))
+
+endfunction
 
 
 " Completions table:
