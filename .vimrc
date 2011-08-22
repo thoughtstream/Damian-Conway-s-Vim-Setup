@@ -406,7 +406,7 @@ nnoremap <Space> <PageDown>
 nmap BB :!bak %<CR><CR>:echomsg "Backed up" expand('%')<CR>
 
 " Edit a file...
-nmap e :n 
+nmap e :n
 
 " Forward/back one file...
 nmap <DOWN> :next<CR>0
@@ -440,8 +440,25 @@ nmap ,,, :w<CR>:!clear;echo;echo;run -d %<CR>
 
 
 " Run perldoc...
-nmap ?? :!pd<SPACE>
+nmap <expr> ?? CallPerldoc()
 set keywordprg=pd
+
+function! CallPerldoc ()
+    let target = matchstr(expand('<cfile>'), '\w\+\(::\w\+\)')
+    return ':Perldoc  ' . target . repeat("\<LEFT>", strlen(target)+1)
+endfunction
+
+command -nargs=1 -complete=customlist,CompletePerlModuleNames Perldoc  !pd <args>
+
+let s:module_files = readfile($HOME.'/.vim/perlmodules')
+function! CompletePerlModuleNames(prefix, cmdline, curpos)
+    let cfile = expand('<cfile>')
+    if cfile =~ '^\w\+\(::\w\+\)*$'
+        return [cfile] + filter(copy(s:module_files), 'v:val =~ ''\c\_^' . a:prefix. "'")
+    else
+        return filter(copy(s:module_files), 'v:val =~ ''\c\_^' . a:prefix. "'")
+    endif
+endfunction
 
 
 " Install current file and swap to alternate file...
@@ -815,7 +832,7 @@ function! ToggleComment ()
         call setline(".", repline)
 
     " Otherwise, insert it...
-    else 
+    else
         let repline = substitute(currline, '^', comment_char, "")
         call setline(".", repline)
     endif
@@ -938,3 +955,26 @@ vmap  U :call Uniq(1)<CR>
 
 runtime plugin/normalized_search.vim
 NormalizedSearchUsing ~/bin/NFKC
+
+
+"====[ Configure handy Perl templates ]====================
+"
+"runtime plugin/fillabbr.vim
+"
+"Fillab  *.p[lm]   for    |for my $____ (_____) {
+"                  \      |______
+"
+"Fillab  *.p[lm]   while  |while (_____) {
+"                  \      |_____
+"
+"Fillab  *.p[lm]   if     |if (____) {
+"                  \      |_____
+"
+"Fillab  *.p[lm]   alias  |alias my $_____ = ______;
+"                  \      |___
+
+
+"====[ Toggle between lists and bulleted lists ]======================
+
+nmap <silent> ;l vip!list2bullets<CR>
+vmap <silent> ;l !list2bullets<CR>

@@ -1,0 +1,119 @@
+#! /usr/bin/perl -w
+use strict;
+use 5.010;
+use Text::Autoformat;
+
+# The default conjunction to add when forming a list...
+my $DEF_LIST_CONJ = 'and';
+
+# The default conjunctions to remove when forming a bulleted list...
+my $DEF_BULLET_CONJ = qr{ and | or }xms;
+
+# The default perltidy options used...
+my $PERLTIDY_OPTS = '-boc -mft=1 -cab=0 -cti=1';
+
+# Obtain text to be converted...
+ my $text = do { local $/; <> };
+
+# Is it a code-like list (i.e. parenthesized and comma separated)???
+my $COMMA_SEPARATED_PARENS = qr{
+    (?&LIST)
+
+    (?(DEFINE)
+        (?<LIST>
+            \( (?: (?&LIST) | [^\)[(\{<] )* \)
+          | \[ (?: (?&LIST) | [^\][(\{<] )* \]
+          | \{ (?: (?&LIST) | [^\}[(\{<] )* \}
+          |  < (?: (?&LIST) | [^\>[(\{<] )*  >
+        )
+    )
+}xms;
+
+if ($text =~ m{$COMMA_SEPARATED_PARENS}p) {
+    # Remember what we found (and what was around it)...
+    my ($pre, $list, $post) = (${^PREMATCH}, ${^MATCH}, ${^POSTMATCH});
+
+    # If it was multi-line, make it single-line, and we're done...
+    if ($list =~ /\n/) {
+        $list =~ s{\s+}{ }g;
+        $list =~ s{\s+\z}{}g;
+        print "$pre$list$post";
+        exit;
+    }
+
+    # Otherwise, load up the formatter...
+    use Perl::Tidy 'perltidy';
+
+    # Reformat the parens...
+    $list =~ s{,}{,\n}gxms;
+    perltidy(source=>\$list, destination=>\$list, perltidyrc=>\$PERLTIDY_OPTS);
+
+    # Reindent...
+    my $indent = $pre =~ m{[^\n]+\z}pxms  ?  ' ' x length(${^MATCH})
+               :                             q{};
+    $list =~ s{\n}{\n$indent}gxms;
+    $list =~ s{\s+\z}{}g;
+
+    # Print it back out...
+    print "$pre$list$post";
+    exit;
+}
+
+# Remember the indent and any bullet...
+$text =~ m{\A (\s*) ([^A-Za-z\s]*\s*) }xms;
+my $indent = $1 // q{};
+my $bullet = $2 // q{};
+
+# Is there bullet already?
+if (length($bullet) == 0) {
+    $bullet = '- ';
+}
+else {
+    # Are all lines bulleted?
+    my $bullet_gap   = q{ } x length $bullet;
+    my $bullet_count = grep {length} $text =~ m{^$indent\Q$bullet\E}gms;
+    my $gap_count    = grep {length} $text =~ m{^$indent$bullet_gap}gms;
+    my @line_count   = $text =~ m{^}gxms;
+
+    # If so, convert to list instead...
+    if ($bullet_count > 1 && @line_count == $bullet_count + $gap_count) {
+        my $sep = $text =~ m{,} ? ';' : ',';
+        $text =~ s{^ \Q$indent\E (?:\Q$bullet\E|\Q$bullet_gap\E)}{}gxms;
+        my @lines = split m{[^\S\n]*\n}, $text;
+        if (@lines < 3) {
+            $text = join $DEF_LIST_CONJ, @lines;
+        }
+        else {
+            $lines[-1] = " $DEF_LIST_CONJ $lines[-1]";
+            $text = join "$sep ", @lines;
+        }
+        print autoformat($indent.$text, {all=>1});
+        exit;
+    }
+}
+
+# Treat as a single unindented line...
+$text =~ s{\A \s* (?:\Q$bullet\E)?}{}xms;
+$text =~ s{\n}{ }gxms;
+
+# What's the item separator?
+my $sep = $text =~ m{;} ? ';' : ',';
+
+# Separate the items...
+my @lines = split m{\Q$sep\E\s*}xms, $text;
+
+# Remove the last conjunction, if any...
+$lines[-1] =~ s{\A \s* $DEF_BULLET_CONJ \s*}{}xms;
+
+# Rebullet them...
+s{^}{$indent$bullet}gxms for @lines;
+
+# Reformat and voila!
+print autoformat(join("\n", @lines), {all=>1});
+
+__DATA__
+
+my $y = (1,2,(3,4,),5,6);
+
+my $x = (1,2,3,4);
+
