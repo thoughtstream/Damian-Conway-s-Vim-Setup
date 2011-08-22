@@ -406,7 +406,7 @@ nnoremap <Space> <PageDown>
 nmap BB :!bak %<CR><CR>:echomsg "Backed up" expand('%')<CR>
 
 " Edit a file...
-nmap e :n
+nmap e :n<SPACE>
 
 " Forward/back one file...
 nmap <DOWN> :next<CR>0
