@@ -77,7 +77,9 @@ call s:conditional_nnoremap( 'gw' )
 
 "====[ Goto last location in non-empty files ]=======
 
-au BufReadPost * if line("'\"") > 1 && line("'\"") <= line("$") | exe "normal! g'\"" | endif
+au BufReadPost *  if line("'\"") > 1 && line("'\"") <= line("$")
+              \|     exe "normal! g`\""
+              \|  endif
 
 
 "====[ I'm sick of typing :%s/.../.../g ]=======
@@ -958,7 +960,7 @@ NormalizedSearchUsing ~/bin/NFKC
 
 
 "====[ Configure handy Perl templates ]====================
-"
+
 "runtime plugin/fillabbr.vim
 "
 "Fillab  *.p[lm]   for    |for my $____ (_____) {
