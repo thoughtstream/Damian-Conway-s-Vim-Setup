@@ -113,5 +113,5 @@ sub call_via_perlbrew {
     }
 
     # Execute it...
-    system qq{tcsh -c '$perl $command $pager'};
+    system qq{$ENV{SHELL} -c '$perl $command $pager'};
 }
