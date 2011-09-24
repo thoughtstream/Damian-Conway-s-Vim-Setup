@@ -1,3 +1,13 @@
+"====[ Edit and auto-update this config file ]==========
+
+augroup VimReload
+    au!
+    au BufWritePost $MYVIMRC source $MYVIMRC
+augroup END
+
+nmap <silent>  ;v  :next $MYVIMRC<CR>
+
+
 "====[ Work out what kind of file this is ]========
 
 filetype plugin on
@@ -99,6 +109,9 @@ augroup VisibleNaughtiness
     au BufEnter  *       set list
     au BufEnter  *.txt   set nolist
     au BufEnter  *.vp*   set nolist
+    au BufEnter  *       if !&modifiable
+    au BufEnter  *           set nolist
+    au BufEnter  *       endif
 augroup END
 
 
@@ -425,15 +438,15 @@ vmap <silent> f :!format -T4 -all<CR>
 
 
 " Execute Perl file (output to pager)...
-nmap E :!mperl -w %<CR>
+nmap E :!hashbang -m %<CR>
 
 
 " Execute Perl file (report compilation time)...
-nmap W :!clear;echo;echo;perl %;echo;echo;echo<CR>
+nmap W :!clear;echo;echo;hashbang %;echo;echo;echo<CR>
 
 
 " Debug Perl file...
-nmap Q :!select_perl -d %<CR>
+nmap Q :!hashbang -d %<CR>
 
 
 " Execute file polymorphically...
@@ -446,19 +459,28 @@ nmap <expr> ?? CallPerldoc()
 set keywordprg=pd
 
 function! CallPerldoc ()
-    let target = matchstr(expand('<cfile>'), '\w\+\(::\w\+\)')
-    return ':Perldoc  ' . target . repeat("\<LEFT>", strlen(target)+1)
+    let target = matchstr(expand('<cfile>'), '\w\+\(::\w\+\)*')
+    set wildmode=list:full
+    return ":Perldoc "
 endfunction
 
-command -nargs=1 -complete=customlist,CompletePerlModuleNames Perldoc  !pd <args>
+command! -nargs=1 -complete=customlist,CompletePerlModuleNames Perldoc  call Perldoc_impl(<q-args>)
 
+function! Perldoc_impl (args)
+    set wildmode=list:longest,full
+    exec '!pd ' . a:args
+endfunction
 let s:module_files = readfile($HOME.'/.vim/perlmodules')
 function! CompletePerlModuleNames(prefix, cmdline, curpos)
     let cfile = expand('<cfile>')
-    if cfile =~ '^\w\+\(::\w\+\)*$'
-        return [cfile] + filter(copy(s:module_files), 'v:val =~ ''\c\_^' . a:prefix. "'")
+    let prefix = a:prefix
+    if prefix == cfile
+        let prefix = ""
+    endif
+    if empty(prefix) && cfile =~ '^\w\+\(::\w\+\)*$'
+        return [cfile] + filter(copy(s:module_files), 'v:val =~ ''\c\_^' . prefix. "'")
     else
-        return filter(copy(s:module_files), 'v:val =~ ''\c\_^' . a:prefix. "'")
+        return filter(copy(s:module_files), 'v:val =~ ''\c\_^' . prefix. "'")
     endif
 endfunction
 
@@ -635,7 +657,7 @@ iab  previosu  previous
 " Insert various shebang lines...
 iab hbc #! /bin/csh
 iab hbs #! /bin/sh
-iab hbp #! /usr/bin/perl -w<CR>use strict;<CR>use 5.010;
+iab hbp #! /usr/bin/env perl<CR>use strict;<CR>use warnings;<CR>use 5.010;
 iab hbr #! /Users/damian/bin/rakudo*<CR>use v6;
 
 " Insert common Perl code structures...
@@ -675,8 +697,10 @@ au BufReadPost quickfix  setlocal number
                     \ |  silent! %s/^[^|]*\//.../
                     \ |  setlocal nomodifiable
 
-nmap <silent> <RIGHT> :cnext<CR>
-nmap <silent> <LEFT>  :cprev<CR>
+nmap <silent> <RIGHT>         :cnext<CR>
+nmap <silent> <RIGHT><RIGHT>  :cnf<CR>
+nmap <silent> <LEFT>          :cprev<CR>
+nmap <silent> <LEFT><LEFT>    :cpf<CR>
 
 
 "=====[ Auto-setup for Perl scripts and modules ]===========
@@ -980,3 +1004,22 @@ NormalizedSearchUsing ~/bin/NFKC
 
 nmap <silent> ;l vip!list2bullets<CR>
 vmap <silent> ;l !list2bullets<CR>
+
+
+"====[ Make Gundo visualizer more usable ]============================
+
+" Shut visualizer when a state is selected...
+let g:gundo_close_on_revert = 1
+
+" Use arrow keys to navigate...
+let g:gundo_map_move_older  =  "\<DOWN>"
+let g:gundo_map_move_newer  =  "\<UP>"
+
+" No help required...
+let g:gundo_help = 0
+
+" Change the layout...
+let g:gundo_right = 1
+
+" Access via a simple mapping...
+nmap ;u :GundoToggle<CR>

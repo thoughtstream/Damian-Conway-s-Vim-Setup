@@ -1,3 +1,0 @@
-#! /bin/csh
-
-perl -MDebug::Phases $argv |& less
