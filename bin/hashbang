@@ -1,7 +1,7 @@
 #! /usr/bin/env perl
 use strict;
 use warnings;
-use v5.10;
+use 5.010;
 
 # Defaults...
 my $DEFAULT_APP = '/usr/bin/perl';
@@ -15,11 +15,12 @@ my $source_file;
 my %config;
 
 ARG:
-for (@ARGV) {
-    when (/^ -d $/x) { $config{debug} = 1; }
-    when (/^ -m $/x) { $config{pager} = 1; }
+while (my $arg = shift @ARGV) {
+    if ($arg =~ /^ -d $/x) { $config{debug} = 1; next ARG; }
+    if ($arg =~ /^ -m $/x) { $config{pager} = 1; next ARG; }
 
-    default { $source_file = $_; last ARG; }
+    $source_file = $arg;
+    last ARG;
 }
 
 # Grab the source...
