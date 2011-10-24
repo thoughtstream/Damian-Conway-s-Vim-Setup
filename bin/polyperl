@@ -1,0 +1,186 @@
+#! /usr/bin/env perl
+use strict;
+use warnings;
+use 5.010;
+
+### This program selects the best available perl (or other utility)
+### based on the contents of the script it is passed.
+### It acts like regular perl eventually will: selecting the best
+### perl semantics according to a Perl program's "use VERSION" declaration
+
+# Defaults...
+my $DEFAULT_PERL = '/usr/bin/perl';
+my $DEFAULT_APP  = $DEFAULT_PERL;
+
+# Perlbrew available versions...
+my @perlbrew_versions = sort map { m{ (perl-\S*) }xms ? $1 : () } `perlbrew list`;
+chomp @perlbrew_versions;
+
+# Separate the filename and other args...
+my $source_file;
+my %config;
+ARG:
+while (my $arg = shift @ARGV) {
+    if ($arg =~ /^ -d $/x)  { $config{debug} = 1; next ARG; }
+    if ($arg =~ /^ -m $/x)  { $config{pager} = 1; next ARG; }
+    if ($arg =~ /^ -vc $/x) { $config{vim_compile} = 1; next ARG; }
+
+    $source_file = $arg;
+    last ARG;
+}
+
+# Grab the source...
+my $source_code = slurp($source_file) // exit;
+
+# Is there a shebang line???
+my $shebang = $source_code =~ m{ \A \s* [#]! \s* ([^\n]+) }xms ? $1 : q{};
+
+# Is it a Perl 5 program???
+my $is_perl5 = $config{vim_compile}
+            || $shebang =~ m{ perl (?!6) }xms
+            || $shebang !~ m{ rakudo | perl6 }xms
+            && $source_file =~ m{ [.] p[ml] \Z }xms;
+
+# If it's a Perl file...
+if ($is_perl5) {
+
+    # Is there a specific Perl version specified???
+    my @version = get_version($source_code, qr{^ \s* use \s+}xms);
+
+    # Otherwise, find perlbrew version that best satisfies the requirement...
+    my @candidates;
+    for my $candidate_perl (@perlbrew_versions) {
+        my @candidate_version = get_version($candidate_perl, qr{ perl- }xms);
+        if (candidate_satisfies(\@candidate_version, \@version)) {
+            push @candidates, $candidate_perl;
+        }
+    }
+
+    # Call the right version via perlbrew, if there is a right version...
+    if (@candidates) {
+        call_via_perlbrew($candidates[-1], \%config, "$source_file @ARGV");
+    }
+    # Otherwise, follow the shebang line...
+    elsif (length $shebang) {
+        if ($config{vim_compile}) {
+            _convert_to_vim_errors(`$shebang -c $source_file >& /dev/stdout `);
+        }
+        else {
+            exec "$shebang $source_file @ARGV";
+        }
+    }
+    # Otherwise, use the default...
+    else {
+        if ($config{vim_compile}) {
+            _convert_to_vim_errors(`$DEFAULT_PERL -c $source_file >& /dev/stdout`);
+        }
+        else {
+            exec "$DEFAULT_PERL $source_file @ARGV";
+        }
+    }
+
+}
+
+# If there's a shebang line, use that...
+elsif (length $shebang) {
+    exec "$shebang $source_file @ARGV";
+}
+
+# If no idea, assume it's the default app...
+else {
+    exec "$DEFAULT_APP $source_file @ARGV";
+}
+
+
+# Version number comparison function...
+sub candidate_satisfies {
+    my ($candidate_version_ref, $version_ref) = @_;
+    for my $index (0..$#{$version_ref}) {
+        return 0 if $candidate_version_ref->[$index] != $version_ref->[$index];
+    }
+    return 1;
+}
+
+# Parse out the 'use VERSION' line, if any...
+sub get_version {
+    my ($string, $prefix) = @_;
+
+    given ($string) {
+        when (m{ $prefix  v? (\d++) [.] (\d++) [.] (\d++) }xms) {
+            return $1+0, $2+0, $3+0;
+        }
+        when (m{ $prefix  v (\d++) [.] (\d++) }xms) {
+           return $1+0, $2+0;
+        }
+        when (m{ $prefix  (\d++) [.] (\d{1,3}+) (\d{1,3}+) }xms) {
+            return $1+0, $2+0, $3+0;
+        }
+        when (m{ $prefix  (\d++) [.] (\d{1,3}+) }xms) {
+            return $1+0, $2+0;
+        }
+    }
+
+    return;
+}
+
+# Read in the contents of a file...
+sub slurp {
+    local (@ARGV,$/) = shift;
+    return scalar readline;
+}
+
+# Execute a command under the specified version of Perl...
+sub call_via_perlbrew {
+    my ($version, $config_ref, $command) = @_;
+
+    # Which form of Perl???
+    my $perl = 'perl';
+    if ($config_ref->{debug}) {
+        $perl .= ' -d';
+    }
+
+    # Paged???
+    my $pager = $config_ref->{pager} ? qq{ | $ENV{PAGER}} : q{};
+
+    # This will be a sub-shell usage of perlbrew...
+    $ENV{PERLBREW_SKIP_INIT} = 1;
+
+    # Which shell are we using???
+    my $env_extractor_pat
+        = $ENV{SHELL} =~ m{csh \Z}xms  ?  qr{\A \s* setenv \s+ (\S+) \s+ (.*)}xms
+        :                                 qr{\A \s* export \s+ (\S+?) =  (.*)}xms
+        ;
+
+    # Ask perlbrew for the necessary environment for the given version...
+    for my $env (`perlbrew env $version`) {
+        # Extract the data and update the current environment...
+        chomp $env;
+        $env =~ $env_extractor_pat  or next;
+        $ENV{$1} = $2;
+    }
+
+    # Execute it...
+    if ($config_ref->{vim_compile}) {
+        _convert_to_vim_errors(`$ENV{SHELL} -c '$perl -c $command' >& /dev/stdout`);
+    }
+    else {
+        system qq{$ENV{SHELL} -c '$perl $command $pager'};
+    }
+}
+
+" Support :make error format in vim...
+sub _convert_to_vim_errors {
+    my $errors = 0;
+    for my $line (@_) {
+        chomp $line;
+        next if $line !~ m{\A (.*) \s at \s (.*) \s line \s (\d+) (.*) \Z}xms;
+        my ($message, $file, $lineno, $rest) = ($1, $2, $3, $4);
+        $message .= $rest if $rest =~ s/^,//;
+        say "$file:$lineno:$message";
+        $errors++;
+    }
+    if (!$errors) {
+        open my $terminal, '>', '/dev/tty';
+        say $terminal q{No errors}
+    }
+}

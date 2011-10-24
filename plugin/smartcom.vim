@@ -25,8 +25,17 @@ inoremap <silent> <S-TAB> <c-r><c-r>=<SID>CompletePadding()<CR>
 " Remap double <S-TAB> for smart completion on filepaths...
 inoremap <silent> <S-TAB><S-TAB> <c-r>=<SID>CompleteFile()<CR>
 
+" Remap <RIGHT> to have special behaviour when placeholders are pending
+inoremap <silent> <RIGHT> <c-r>=<SID>RightKey()<CR>
 
 "=====[ Implementation ]=====================================================
+
+" What placeholders look like and how many are pending...
+let s:placeholder_pat = '_\{3,}'
+let s:placeholder_count = 0
+
+
+" Complete the current line by duplicating compatible existing lines...
 
 function! <SID>CompleteLine ()
     " If already completing, keep completing; otherwise, start completing...
@@ -38,6 +47,8 @@ function! <SID>CompleteLine ()
 endfunction
 
 
+" Do file completion on the current prefix, when appropriate...
+
 function! <SID>CompleteFile ()
     " If already completing, keep completing; otherwise, start completing...
     if pumvisible()
@@ -47,6 +58,8 @@ function! <SID>CompleteFile ()
     endif
 endfunction
 
+
+" Complete with the same padding as the previous line...
 
 let s:PREVPADDING  = '.\{-}\(\A\&\D\&\S\)\1\+'
 let s:PREVSPACING  = '.\{-}\(\s\)\1\+'
@@ -81,15 +94,25 @@ endfunction
 "   col 1 is left context,
 "   col 2 is right context,
 "   col 3 is what to insert
-"   col 4 is whether to revert the cursor position
-"   col 5 is an optional "filename pattern" to constrain where completion valid
+"   col 4 is whether to restore the cursor position
+"   col 5 is an optional filetype to constrain where completion valid
+"   col 6 is an optional "filename pattern" to constrain where completion valid
+"   col 7 is how many placeholders the replacement text has
 let s:completions = []
 
 " Public function to add other completions (which are tried first)
 function! SmartcomAdd (left, right, completion, ...)
-    let revert  = len(a:000) > 0 ? a:000[0] : 0
-    let filepat = len(a:000) > 1 ? a:000[1] : 0
-    call insert(s:completions, [a:left, a:right, a:completion, revert, filepat])
+    " Any options???
+    let opts = empty(a:000) ? {} : a:000[0]
+
+    " Extract them...
+    let restore_cursor = get(opts, 'restore',  0)
+    let filetype       = get(opts, 'filetype', "")
+    let filepat        = get(opts, 'filepat',  "")
+    let placeholders   = get(opts, 'verbatim', 0) ? 0 : len(split(a:completion, s:placeholder_pat, 1))-1
+
+    " Remember everything...
+    call insert(s:completions, [a:left, a:right, a:completion, restore_cursor, filetype, filepat, placeholders])
 endfunction
 
 " Completion action table:
@@ -105,20 +128,21 @@ endfunction
 
 
 let s:NIL = ""
+let s:RESTORE = {'restore':1}
 
-"                  Left   Right   Complete with...         Autorevert
+"                  Left   Right   Complete with...         Autorestore
 "                  ====   =====   ====================     ==========
-call SmartcomAdd(  '{',   s:NIL,  "}"                    , 1           )
-call SmartcomAdd(  '{',   '}',    "\<CR>\<C-D>\<ESC>O"                 )
-call SmartcomAdd(  '\[',  s:NIL,  "]"                    , 1           )
+call SmartcomAdd(  '{',   s:NIL,  "}"                    , s:RESTORE   )
+call SmartcomAdd(  '{',   '}',    "\<CR>\<C-D>\<UP>\<RIGHT>\<CR>"      )
+call SmartcomAdd(  '\[',  s:NIL,  "]"                    , s:RESTORE   )
 call SmartcomAdd(  '\[',  '\]',    "\<CR>\<ESC>O\<TAB>"                )
-call SmartcomAdd(  '(',   s:NIL,  ")"                    , 1           )
+call SmartcomAdd(  '(',   s:NIL,  ")"                    , s:RESTORE   )
 call SmartcomAdd(  '(',   ')',    "\<CR>\<ESC>O\<TAB>"                 )
-call SmartcomAdd(  '<',   s:NIL,   ">"                   , 1           )
+call SmartcomAdd(  '<',   s:NIL,   ">"                   , s:RESTORE   )
 call SmartcomAdd(  '<',   '>',    "\<CR>\<ESC>O\<TAB>"                 )
-call SmartcomAdd(  '"',   s:NIL,  '"'                    , 1           )
-call SmartcomAdd(  '"',   '"',    "\\n"                  , 1           )
-call SmartcomAdd(  "'",   s:NIL,  "'"                    , 1           )
+call SmartcomAdd(  '"',   s:NIL,  '"'                    , s:RESTORE   )
+call SmartcomAdd(  '"',   '"',    "\\n"                  , s:RESTORE   )
+call SmartcomAdd(  "'",   s:NIL,  "'"                    , s:RESTORE   )
 call SmartcomAdd(  "'",   "'",    s:NIL,                               )
 
 
@@ -142,7 +166,7 @@ function! <SID>Complete ()
         return s:tab
     endif
 
-    " How to revert the cursor position...
+    " How to restore the cursor position...
     let reversion = "\<C-O>:call setpos('.'," . string(cursorpos) . ")\<CR>"
 
     " Determine context of completion...
@@ -168,10 +192,15 @@ function! <SID>Complete ()
 
     " If a matching smart completion has been specified, use that...
     let filename = expand('%')
-    for [left, right, completion, revert, filepat] in s:completions
-        if filepat && filename !~ filepat
+    for [left, right, completion, restore_cursor, filetype, filepat, placeholders] in s:completions
+        " Only try completions for which the filetype and/or filename match...
+        if strlen(filetype) && &filetype != filetype
+            continue
+        elseif strlen(filepat) && filename !~ filepat
             continue
         endif
+
+        " Build the pattern to be tested...
         let pattern = left . curr_pos . right
         if curr_line =~ pattern
             " Code around bug in setpos() when used at EOL...
@@ -179,8 +208,20 @@ function! <SID>Complete ()
                 let reversion = "\<LEFT>"
             endif
 
+            " Remember the extra placeholders...
+            if placeholders
+                " Placeholder count incremented by N-1 because we immediately jump to the first...
+                let s:placeholder_count += placeholders - 1
+
+                " Have to jump from the start of the inserted text...
+                let restore_cursor = 1
+
+                " This is how to jump to the first placeholder...
+                let reversion .= "\<ESC>/" . s:placeholder_pat . "\<CR>cw"
+            endif
+
             " Return the completion...
-            return completion . (revert ? reversion : "")
+            return completion . (restore_cursor ? reversion : "")
         endif
     endfor
 
@@ -192,6 +233,18 @@ function! <SID>Complete ()
     else
         return "\<C-N>"
 
+    endif
+endfunction
+
+
+" Give <RIGHT> key special behaviour when placeholders are pending...
+
+function! <SID>RightKey ()
+    if s:placeholder_count
+        let s:placeholder_count -= 1
+        return "\<ESC>/" . s:placeholder_pat . "\<CR>cw"
+    else
+        return "\<RIGHT>"
     endif
 endfunction
 

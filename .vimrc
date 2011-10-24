@@ -1,3 +1,39 @@
+"=====[ Remind me what documented mappings I currently have ]================
+
+let g:MapDoc_Description = {}
+
+command! -nargs=+ Nmap call MapDoc_Define('Nmap', <q-args>)
+
+let s:mapdoc_syntax = '\C\(\%(\s*<[a-z]\+>\s*\)*\)\s*\(\S\+\)\s\+\%(\[\(.\{-}\)\]\)\?\(.*\)'
+
+function! MapDoc_Define (type, args)
+    try
+        let [match, opts, lhs, desc, rhs; etc] = matchlist(a:args, s:mapdoc_syntax)
+    catch
+        echoerr 'Invalid syntax in: ' . a:type . ' ' a:args
+        return
+    endtry
+    if lhs =~ '^[' && empty(desc)
+        echoerr 'Missing lhs before description in: ' . a:type . ' ' . a:args
+        return
+    endif
+    let g:MapDoc_Description[lhs] = empty(desc) ? '????' : desc
+    exec tolower(a:type) . ' ' . opts . ' ' . lhs . ' ' . rhs
+endfunction
+
+Nmap ;h [Print this list] :call MapDoc_ListMappings()<CR>
+
+function! MapDoc_ListMappings ()
+    echohl MoreMsg
+    echo repeat('_',80)
+    for lhs in sort(keys(g:MapDoc_Description))
+        echo printf("%-4s %s", lhs, g:MapDoc_Description[lhs])
+    endfor
+    echo repeat('_',80)
+    echohl None
+endfunction
+
+
 "====[ Edit and auto-update this config file ]==========
 
 augroup VimReload
@@ -5,7 +41,8 @@ augroup VimReload
     au BufWritePost $MYVIMRC source $MYVIMRC
 augroup END
 
-nmap <silent>  ;v  :next $MYVIMRC<CR>
+Nmap <silent>  ;v   [Edit .vimrc]          :next $MYVIMRC<CR>
+Nmap           ;vv  [Edit .vim/plugin/...] :next ~/.vim/plugin/
 
 
 "====[ Work out what kind of file this is ]========
@@ -94,8 +131,8 @@ au BufReadPost *  if line("'\"") > 1 && line("'\"") <= line("$")
 
 "====[ I'm sick of typing :%s/.../.../g ]=======
 
-nmap S  :%s//g<LEFT><LEFT>
-vmap S  :s//g<LEFT><LEFT>
+Nmap S  [Shortcut for :s///g]  :%s//g<LEFT><LEFT>
+vmap S                         :s//g<LEFT><LEFT>
 
 
 "====[ Toggle visibility of naughty characters ]============
@@ -122,17 +159,18 @@ set smartcase                       "...unless uppercase letters used
 set hlsearch                        "Highlight all search matches
 
 "Delete in normal mode to switch off highlighting till next search and clear messages...
-nmap <silent> <BS> :nohlsearch <BAR> call Toggle_CursorColumn('off')<CR>
+Nmap <silent> <BS> [Cancel highlighting]  :nohlsearch <BAR> call Toggle_CursorColumn('off')<CR>
 
 "Double-delete to remove search highlighting *and* trailing whitespace...
-nmap <silent> <BS><BS>  mz:%s/\s\+$//g<CR>`z:nohlsearch<CR>
+Nmap <silent> <BS><BS>  [Cancel highlighting and remove trailing whitespace]
+\             mz:%s/\s\+$//g<CR>`z:nohlsearch<CR>
 
 
 "====[ Handle encoding issues ]============
 
 set encoding=latin1
 
-nmap <silent> U :call ToggleUTF8()<CR>
+Nmap <silent> U [Toggle UTF8]  :call ToggleUTF8()<CR>
 
 function! ToggleUTF8 ()
     if &fileencoding =~ 'utf-\?8'
@@ -222,14 +260,6 @@ function! ShiftLine()
     set smartindent
 endfunction
 
-
-"=====[ Handle Perl include files better ]==================================
-
-" For Perl syntax...
-set include=^\\s*use\\s\\+\\zs\\k\\+\\ze
-set includeexpr=substitute(v:fname,'::','/','g')
-set suffixesadd=.pm
-execute 'set path+=' . substitute($PERL5LIB, ':', ',', 'g')
 
 
 "====[ I hate modelines ]===================
@@ -329,7 +359,8 @@ endfunction
 
 "=====[ Toggle syntax highlighting ]==============================
 
-nmap <silent> ;y : if exists("syntax_on") <BAR>
+Nmap <silent> ;y [Toggle syntax highlighting]
+                 \ : if exists("syntax_on") <BAR>
                  \    syntax off <BAR>
                  \ else <BAR>
                  \    syntax enable <BAR>
@@ -400,12 +431,6 @@ set timeout timeoutlen=300 ttimeoutlen=300
 set thesaurus+=~/Documents/thesaurus    "Add thesaurus file for ^X^T
 set dictionary+=~/Documents/dictionary  "Add dictionary file for ^X^K
 
-"Adjust keyword characters for Perlish identifiers...
-set iskeyword+=$
-set iskeyword+=%
-set iskeyword+=@
-set iskeyword-=,
-
 
 set scrolloff=2                     "Scroll when 2 lines from top/bottom
 
@@ -418,7 +443,7 @@ set ruler                           "Show cursor location info on status line
 nnoremap <Space> <PageDown>
 
 " Back up the current file
-nmap BB :!bak %<CR><CR>:echomsg "Backed up" expand('%')<CR>
+Nmap BB [Back up current file]  :!bak %<CR><CR>:echomsg "Backed up" expand('%')<CR>
 
 " Edit a file...
 nmap e :n<SPACE>
@@ -427,66 +452,14 @@ nmap e :n<SPACE>
 nmap <DOWN> :next<CR>0
 nmap <UP>   :prev<CR>0
 
-" Format file with perltidy...
-nmap ;t 1G!Gperltidy<CR>
-
 " Format file with autoformat (capitalize to specify options)...
 nmap          F !Gformat -T4 -
 nmap <silent> f !Gformat -T4<CR>
 vmap          F :!format -T4 -all -
 vmap <silent> f :!format -T4 -all<CR>
 
-
-" Execute Perl file (output to pager)...
-nmap E :!hashbang -m %<CR>
-
-
-" Execute Perl file (report compilation time)...
-nmap W :!clear;echo;echo;hashbang %;echo;echo;echo<CR>
-
-
-" Debug Perl file...
-nmap Q :!hashbang -d %<CR>
-
-
-" Execute file polymorphically...
-nmap ,, :w<CR>:!clear;echo;echo;run %<CR>
-nmap ,,, :w<CR>:!clear;echo;echo;run -d %<CR>
-
-
-" Run perldoc...
-nmap <expr> ?? CallPerldoc()
-set keywordprg=pd
-
-function! CallPerldoc ()
-    let target = matchstr(expand('<cfile>'), '\w\+\(::\w\+\)*')
-    set wildmode=list:full
-    return ":Perldoc "
-endfunction
-
-command! -nargs=1 -complete=customlist,CompletePerlModuleNames Perldoc  call Perldoc_impl(<q-args>)
-
-function! Perldoc_impl (args)
-    set wildmode=list:longest,full
-    exec '!pd ' . a:args
-endfunction
-let s:module_files = readfile($HOME.'/.vim/perlmodules')
-function! CompletePerlModuleNames(prefix, cmdline, curpos)
-    let cfile = expand('<cfile>')
-    let prefix = a:prefix
-    if prefix == cfile
-        let prefix = ""
-    endif
-    if empty(prefix) && cfile =~ '^\w\+\(::\w\+\)*$'
-        return [cfile] + filter(copy(s:module_files), 'v:val =~ ''\c\_^' . prefix. "'")
-    else
-        return filter(copy(s:module_files), 'v:val =~ ''\c\_^' . prefix. "'")
-    endif
-endfunction
-
-
 " Install current file and swap to alternate file...
-nmap IP :!install -f %<CR>g
+Nmap IP [Install current file and swap to alternate] :!install -f %<CR>g
 
 
 " Add *** as **/* on command-line...
@@ -505,6 +478,292 @@ nmap -- A<CR><CR><CR><ESC>k6i-----cut-----<ESC><CR>
 " Indent/outdent current block...
 nmap %% $>i}``
 nmap $$ $<i}``
+
+
+" =====[ Perl programming support ]===========================
+
+" Execute Perl file...
+nmap W :!clear;echo;echo;polyperl %;echo;echo;echo<CR>
+
+" Execute Perl file (output to pager)...
+nmap E :!polyperl -m %<CR>
+
+" Execute Perl file (in debugger)...
+nmap Q :!polyperl -d %<CR>
+
+
+" Format file with perltidy...
+Nmap ;p [Perltidy the current buffer]  1G!Gperltidy<CR>
+
+" Show what changes perltidy would make...
+Nmap ;pp [Perltidy to the current buffer (as a diff)]  :call Perltidy_diff()<CR>
+
+function! Perltidy_diff ()
+    " Work out what the tidied file will be called...
+    let perl_file = expand( '%' )
+    let tidy_file = perl_file . '.tdy'
+
+    call system( 'perltidy -nst ' . perl_file . ' -o ' . tidy_file )
+
+    " Add the diff to the right of the current window...
+    set splitright
+    exe ":vertical diffsplit " . tidy_file
+
+    " Clean up the tidied version...
+    call delete(tidy_file)
+endfunction
+
+
+" Run perldoc with smarter completion...
+Nmap <expr> ?? [Go to documentation] CallPerldoc()
+set keywordprg=pd
+
+function! CallPerldoc ()
+    " When editing Vim files, revert to :help...
+    if &filetype == 'vim' || &buftype == 'help'
+        return ":help "
+
+    " Otherwise use Perldoc...
+    else
+        let target = matchstr(expand('<cfile>'), '\w\+\(::\w\+\)*')
+        set wildmode=list:full
+        return ":Perldoc "
+    endif
+endfunction
+
+command! -nargs=1 -complete=customlist,CompletePerlModuleNames Perldoc  call Perldoc_impl(<q-args>)
+
+function! Perldoc_impl (args)
+    set wildmode=list:longest,full
+    exec '!pd ' . a:args
+endfunction
+
+let s:module_files = readfile($HOME.'/.vim/perlmodules')
+function! CompletePerlModuleNames(prefix, cmdline, curpos)
+    let cfile = expand('<cfile>')
+    let prefix = a:prefix
+    if prefix == cfile
+        let prefix = ""
+    endif
+    if empty(prefix) && cfile =~ '^\w\+\(::\w\+\)*$'
+        return [cfile] + filter(copy(s:module_files), 'v:val =~ ''\c\_^' . prefix. "'")
+    else
+        return filter(copy(s:module_files), 'v:val =~ ''\c\_^' . prefix. "'")
+    endif
+endfunction
+
+
+" Handle Perl include files better...
+
+set include=^\\s*use\\s\\+\\zs\\k\\+\\ze
+set includeexpr=substitute(v:fname,'::','/','g')
+set suffixesadd=.pm
+execute 'set path+=' . substitute($PERL5LIB, ':', ',', 'g')
+
+
+"Adjust keyword characters to match Perlish identifiers...
+set iskeyword+=$
+set iskeyword+=%
+set iskeyword+=@
+set iskeyword-=,
+
+
+" Insert common Perl code structures...
+
+iab udd use Data::Dumper 'Dumper';<CR>warn Dumper [];<ESC>hi
+iab uds use Data::Show;<CR>show
+iab ubm use Benchmark qw( cmpthese );<CR><CR>cmpthese -10, {<CR>};<ESC>O
+iab usc use Smart::Comments;<CR>###
+iab uts use Test::Simple 'no_plan';
+iab utm use Test::More 'no_plan';
+iab dbs $DB::single = 1;<ESC>
+
+
+"=====[ Emphasize typical mistakes in Vim and Perl files ]=========
+
+" Add a new high-visibility highlight combination...
+highlight WHITE_ON_RED    ctermfg=white  ctermbg=red
+
+" Emphasize undereferenced references...
+call matchadd('WHITE_ON_RED', '_ref[ ]*[[{(]\|_ref[ ]*-[^>]')
+
+" Emphasize typical mistakes a Perl hacker makes in .vim files...
+let g:VimMistakes = '\_^\s*\zs\%(\k:\)\?\k\+\s*[+-.]\?==\@!\|\_^\s*elsif\|;\s*\_$'
+let g:VimMistakesID = 668
+augroup VimMistakes
+    au!
+    au BufEnter  *.vim,.vimrc   call VimMistakes_AddMatch()
+    au BufLeave  *.vim,.vimrc   call VimMistakes_ClearMatch()
+augroup END
+
+function! VimMistakes_AddMatch ()
+    try | call matchadd('WHITE_ON_RED',g:VimMistakes,10,g:VimMistakesID) | catch | endtry
+endfunction
+
+function! VimMistakes_ClearMatch ()
+    try | call matchdelete(g:VimMistakesID) | catch | endtry
+endfunction
+
+
+"=====[ Enable quickfix on Perl programs ]=======================
+
+Nmap ;m [Run :make and any tests on a Perl file]  :make<CR><CR><CR>:call PerlMake_Cleanup()<CR>
+
+function! PerlMake_Cleanup ()
+    " If there are errors, show the first of them...
+    if !empty(getqflist())
+        cc
+
+    " Otherwise, run the test suite as well...
+    else
+        call RunPerlTests()
+"        call input('Press ENTER to continue')
+    endif
+endfunction
+
+set makeprg=polyperl\ -vc\ %\ $*
+
+augroup PerlMake
+    au!
+    au BufReadPost quickfix  setlocal number
+                        \ |  setlocal nowrap
+                        \ |  setlocal modifiable
+                        \ |  silent! %s/^[^|]*\//.../
+                        \ |  setlocal nomodifiable
+
+augroup END
+
+nmap <silent> <RIGHT>         :cnext<CR>
+nmap <silent> <RIGHT><RIGHT>  :cnf<CR>
+nmap <silent> <LEFT>          :cprev<CR>
+nmap <silent> <LEFT><LEFT>    :cpf<CR>
+
+
+"=====[ Run a Perl module's test suite ]=========================
+
+let g:PerlTests_program       = 'perltests'   " ...What to call
+let g:PerlTests_search_height = 5             " ...How far up to search
+let g:PerlTests_test_dir      = '/t'          " ...Where to look for tests
+
+augroup Perl_Tests
+    au!
+    au BufEnter *.pm   Nmap <buffer> ;t [Run local test suite] :call RunPerlTests()<CR>
+augroup END
+
+function! RunPerlTests ()
+    " Start in the current directory...
+    let dir = expand('%:h')
+
+    " Walk up through parent directories, looking for a test directory...
+    for n in range(g:PerlTests_search_height)
+        " When found...
+        if isdirectory(dir . g:PerlTests_test_dir)
+            " Go there...
+            silent exec 'cd ' . dir
+
+            " Run the tests...
+            exec ':!' . g:PerlTests_program
+
+            " Return to the previous directory...
+            silent cd -
+            return
+        endif
+
+        " Otherwise, keep looking up the directory tree...
+        let dir = dir . '/..'
+    endfor
+
+    " If not found, report the failure...
+    echohl WarningMsg
+    echomsg "Couldn't find a suitable" g:PerlTests_test_dir '(tried' g:PerlTests_search_height 'levels up)'
+    echohl None
+endfunction
+
+
+"=====[ Auto-setup for Perl scripts and modules ]===========
+
+augroup Perl_Setup
+    au!
+    au BufNewFile *.p[lm] 0r !file_template <afile>
+    au BufNewFile *.p[lm] /^[ \t]*[#].*implementation[ \t]\+here/
+augroup END
+
+
+"=====[ Proper syntax highlighting for Rakudo files ]===========
+
+autocmd BufNewFile,BufRead  *   :call CheckForPerl6()
+
+function! CheckForPerl6 ()
+    if getline(1) =~ 'rakudo'
+        setfiletype perl6
+    endif
+    if expand('<afile>:e') == 'pod6'
+        highlight Pod6Block_Heading1 cterm=bold,underline
+        highlight Pod6FC_Important cterm=underline
+
+        setfiletype pod6
+        syntax enable
+    endif
+endfunction
+
+
+" =====[ Smart completion via <TAB> and <S-TAB> ]=============
+
+runtime plugin/smartcom.vim
+
+" Add extra completions (mainly for Perl programming)...
+
+let ANYTHING = ""
+let NOTHING  = ""
+let EOL      = '\s*$'
+
+                " Left     Right      Insert                             Reset cursor
+                " =====    =====      ===============================    ============
+call SmartcomAdd( '<<',    ANYTHING,  '>>',                              {'restore':1} )
+call SmartcomAdd( '<<',    '>>',      "\<CR>\<ESC>O\<TAB>"                             )
+call SmartcomAdd( '«',     ANYTHING,  '»',                               {'restore':1} )
+call SmartcomAdd( '«',     '»',       "\<CR>\<ESC>O\<TAB>"                             )
+call SmartcomAdd( '{{',    ANYTHING,  '}}',                              {'restore':1} )
+call SmartcomAdd( '{{',    '}}',      NOTHING,                                         )
+call SmartcomAdd( 'qr{',   ANYTHING,  '}xms',                            {'restore':1} )
+call SmartcomAdd( 'qr{',   '}xms',    "\<CR>\<C-D>\<ESC>O\<C-D>\<TAB>"                 )
+call SmartcomAdd( 'm{',    ANYTHING,  '}xms',                            {'restore':1} )
+call SmartcomAdd( 'm{',    '}xms',    "\<CR>\<C-D>\<ESC>O\<C-D>\<TAB>",                )
+call SmartcomAdd( 's{',    ANYTHING,  '}{}xms',                          {'restore':1} )
+call SmartcomAdd( 's{',    '}{}xms',  "\<CR>\<C-D>\<ESC>O\<C-D>\<TAB>",                )
+call SmartcomAdd( '\*\*',  ANYTHING,  '**',                              {'restore':1} )
+call SmartcomAdd( '\*\*',  '\*\*',    NOTHING,                                         )
+
+                " Left         Right   Insert                            Where
+                " ==========   =====   =============================     ===================
+" Vim keywords...
+call SmartcomAdd( '^\s*func',  EOL,    "tion!\<CR>endfunction\<UP> ",    {'filetype':'vim'}  )
+
+" Perl keywords...
+call SmartcomAdd( '^\s*for',   EOL,    " my $___ (___) {\n___\n}\n___",  {'filetype':'perl'} )
+call SmartcomAdd( '^\s*if',    EOL,    " (___) {\n___\n}\n___",          {'filetype':'perl'} )
+call SmartcomAdd( '^\s*while', EOL,    " (___) {\n___\n}\n___",          {'filetype':'perl'} )
+call SmartcomAdd( '^\s*given', EOL,    " (___) {\n___\n}\n___",          {'filetype':'perl'} )
+call SmartcomAdd( '^\s*when',  EOL,    " (___) {\n___\n}\n___",          {'filetype':'perl'} )
+
+" Complete Perl module loads with the names of Perl modules...
+call SmartcomAddAction( '^\s*use\s\+\k\+', "",
+\                       'set complete=k~/.vim/perlmodules|set iskeyword+=:'
+\)
+
+
+"=====[ General programming support ]===================================
+
+" Insert various shebang lines...
+iab hbc #! /bin/csh
+iab hbs #! /bin/sh
+iab hbp #! /usr/bin/env perl<CR>use strict;<CR>use warnings;<CR>use 5.010;
+iab hbr #! /Users/damian/bin/rakudo*<CR>use v6;
+
+
+" Execute current file polymorphically...
+Nmap ,, [Execute current file] :w<CR>:!clear;echo;echo;run %<CR>
+Nmap ,,, [Debug current file]  :w<CR>:!clear;echo;echo;run -d %<CR>
 
 
 "=====[ Show help files in a new tab, plus add a shortcut for helpg ]==============
@@ -652,86 +911,6 @@ iab      moer  more
 iab  previosu  previous
 
 
-"=====[ Programming support ]===================================
-
-" Insert various shebang lines...
-iab hbc #! /bin/csh
-iab hbs #! /bin/sh
-iab hbp #! /usr/bin/env perl<CR>use strict;<CR>use warnings;<CR>use 5.010;
-iab hbr #! /Users/damian/bin/rakudo*<CR>use v6;
-
-" Insert common Perl code structures...
-iab udd use Data::Dumper 'Dumper';<CR>warn Dumper [];<ESC>hi
-iab uds use Data::Show;<CR>show
-iab ubm use Benchmark qw( cmpthese );<CR><CR>cmpthese -10, {<CR>};<ESC>O
-iab usc use Smart::Comments;<CR>###
-iab uts use Test::Simple 'no_plan';
-iab utm use Test::More 'no_plan';
-iab dbs $DB::single = 1;<ESC>
-
-
-"=====[ Emphasize typical mistakes in Vim and Perl files ]=========
-
-" Add a new high-visibility highlight combination...
-highlight WHITE_ON_RED    ctermfg=white  ctermbg=red
-
-" Emphasize undereferenced references...
-call matchadd('WHITE_ON_RED', '_ref[ ]*[[{(]\|_ref[ ]*-[^>]')
-
-" Emphasize typical mistakes a Perl hacker makes in .vim files...
-augroup VimMistakes
-    au!
-    au BufEnter  *.vim,.vimrc   setlocal iskeyword+=:
-    au BufEnter  *.vim,.vimrc   match WHITE_ON_RED /\_^\s*\zs\k\+\s*[+-.]\?==\@!\|\_^\s*elsif\|;\s*\_$/
-augroup END
-
-
-"=====[ Enable quickfix on perl programs ]=======================
-" efm_perl.pl translates Perl error messages to the standard "%f:%l:%m" format
-
-set makeprg=/Applications/Vim.app/Contents/Resources/vim/runtime/tools/efm_perl.pl\ -c\ %\ $*
-
-au BufReadPost quickfix  setlocal number
-                    \ |  setlocal nowrap
-                    \ |  setlocal modifiable
-                    \ |  silent! %s/^[^|]*\//.../
-                    \ |  setlocal nomodifiable
-
-nmap <silent> <RIGHT>         :cnext<CR>
-nmap <silent> <RIGHT><RIGHT>  :cnf<CR>
-nmap <silent> <LEFT>          :cprev<CR>
-nmap <silent> <LEFT><LEFT>    :cpf<CR>
-
-
-"=====[ Auto-setup for Perl scripts and modules ]===========
-
-augroup Perl_Setup
-    au!
-    au BufNewFile *.p[lm] 0r !file_template <afile>
-    au BufNewFile *.p[lm] /^[ \t]*[#].*implementation[ \t]\+here/
-augroup END
-
-
-"=====[ Proper syntax highlighting for Rakudo files ]===========
-
-autocmd BufNewFile,BufRead  *   :call CheckForPerl6()
-
-function! CheckForPerl6 ()
-    if getline(1) =~ 'rakudo'
-        setfiletype perl6
-    endif
-    if expand('<afile>:e') == 'pod6'
-        highlight Pod6Block_Heading1 cterm=bold,underline
-        highlight Pod6FC_Important cterm=underline
-
-        nmap ;p :call Pod6_ToggleProofing()<CR>
-
-        setfiletype pod6
-        syntax enable
-    endif
-endfunction
-
-
 "=====[ Tab handling ]======================================
 
 set tabstop=4      "Tab indentation levels every four columns
@@ -739,33 +918,6 @@ set shiftwidth=4   "Indent/outdent by four columns
 set expandtab      "Convert all tabs that are typed into spaces
 set shiftround     "Always indent/outdent to nearest tabstop
 set smarttab       "Use shiftwidths at left margin, tabstops everywhere else
-
-" Use the smartcom plugin to remap <TAB> and <S-TAB>
-runtime plugin/smartcom.vim
-
-" Add extra completions for the smartcom.vim tab completion plugin...
-
-call SmartcomAdd( '<<',   "",    '>>',                            1 )
-call SmartcomAdd( '<<',   '>>',  "\<CR>\<ESC>O\<TAB>"               )
-call SmartcomAdd( '{{',   "",    '}}',                            1 )
-call SmartcomAdd( '{{',   '}}',  ""                                 )
-call SmartcomAdd( 'qr{',  "",    '}xms',                          1 )
-call SmartcomAdd( 'qr{',  '}xms',"\<CR>\<C-D>\<ESC>O\<C-D>\<TAB>",  )
-call SmartcomAdd( 'm{',  "",    '}xms',                          1 )
-call SmartcomAdd( 'm{',  '}xms',"\<CR>\<C-D>\<ESC>O\<C-D>\<TAB>",  )
-call SmartcomAdd( 's{',  "",    '}{}xms',                          1 )
-call SmartcomAdd( 's{',  '}{}xms',"\<CR>\<C-D>\<ESC>O\<C-D>\<TAB>",  )
-call SmartcomAdd( '\*\*', "",    '**',                            1 )
-call SmartcomAdd( '\*\*', '\*\*', ""                                )
-call SmartcomAdd( '«',    "",    '»',                             1 )
-call SmartcomAdd( '«',    '»',   "\<CR>\<ESC>O\<TAB>"               )
-
-call SmartcomAdd( '^\s*func',       "",   "tion!\<CR>endfunction\<UP> ",   )
-call SmartcomAdd( '^\s*function!',  "",  "\<CR>endfunction\<UP> ",      )
-
-call SmartcomAddAction( '^\s*use\s\+\k\+', "",
-\                       'set complete=k~/.vim/perlmodules|set iskeyword+=:'
-\)
 
 
 " Make the completion popup look menu-ish on a Mac...
@@ -983,26 +1135,10 @@ runtime plugin/normalized_search.vim
 NormalizedSearchUsing ~/bin/NFKC
 
 
-"====[ Configure handy Perl templates ]====================
-
-"runtime plugin/fillabbr.vim
-"
-"Fillab  *.p[lm]   for    |for my $____ (_____) {
-"                  \      |______
-"
-"Fillab  *.p[lm]   while  |while (_____) {
-"                  \      |_____
-"
-"Fillab  *.p[lm]   if     |if (____) {
-"                  \      |_____
-"
-"Fillab  *.p[lm]   alias  |alias my $_____ = ______;
-"                  \      |___
-
 
 "====[ Toggle between lists and bulleted lists ]======================
 
-nmap <silent> ;l vip!list2bullets<CR>
+Nmap <silent> ;l [Toggle list format (bullets <-> commas)]  vip!list2bullets<CR>
 vmap <silent> ;l !list2bullets<CR>
 
 
@@ -1022,4 +1158,5 @@ let g:gundo_help = 0
 let g:gundo_right = 1
 
 " Access via a simple mapping...
-nmap ;u :GundoToggle<CR>
+Nmap ;u [Show the undo tree]  :GundoToggle<CR>
+
