@@ -1,58 +1,37 @@
-"=====[ Remind me what documented mappings I currently have ]================
+"====[ Work out what kind of file this is ]========
 
-let g:MapDoc_Description = {}
-
-command! -nargs=+ Nmap call MapDoc_Define('Nmap', <q-args>)
-
-let s:mapdoc_syntax = '\C\(\%(\s*<[a-z]\+>\s*\)*\)\s*\(\S\+\)\s\+\%(\[\(.\{-}\)\]\)\?\(.*\)'
-
-function! MapDoc_Define (type, args)
-    try
-        let [match, opts, lhs, desc, rhs; etc] = matchlist(a:args, s:mapdoc_syntax)
-    catch
-        echoerr 'Invalid syntax in: ' . a:type . ' ' a:args
-        return
-    endtry
-    if lhs =~ '^[' && empty(desc)
-        echoerr 'Missing lhs before description in: ' . a:type . ' ' . a:args
-        return
-    endif
-    let g:MapDoc_Description[lhs] = empty(desc) ? '????' : desc
-    exec tolower(a:type) . ' ' . opts . ' ' . lhs . ' ' . rhs
-endfunction
-
-Nmap ;h [Print this list] :call MapDoc_ListMappings()<CR>
-
-function! MapDoc_ListMappings ()
-    echohl MoreMsg
-    echo repeat('_',80)
-    for lhs in sort(keys(g:MapDoc_Description))
-        echo printf("%-4s %s", lhs, g:MapDoc_Description[lhs])
-    endfor
-    echo repeat('_',80)
-    echohl None
-endfunction
+filetype plugin on
 
 
-"====[ Edit and auto-update this config file ]==========
+"=====[ Comments are important ]==================
+
+highlight Comment term=bold ctermfg=white
+
+
+"=====[ Enable Nmap command for documented mappings ]================
+
+runtime plugin/documap.vim
+
+
+"====[ Edit and auto-update this config file and plugins ]==========
 
 augroup VimReload
-    au!
-    au BufWritePost $MYVIMRC source $MYVIMRC
+    autocmd!
+    autocmd BufWritePost $MYVIMRC source $MYVIMRC
 augroup END
 
 Nmap <silent>  ;v   [Edit .vimrc]          :next $MYVIMRC<CR>
 Nmap           ;vv  [Edit .vim/plugin/...] :next ~/.vim/plugin/
 
 
-"====[ Work out what kind of file this is ]========
+"=====[ Edit files in local bin directory ]========
 
-filetype plugin on
+Nmap ;b  [Edit ~/bin/...]  :next ~/bin/
 
 
 "====[ Go back to alternate file (but retain other g<whatever> mappings)]====
 
-map g  :w<CR>:e #<CR>
+nmap g  :w<CR>:e #<CR>
 
 function! s:conditional_nnoremap ( name )
     if maparg(a:name, 'n') == ""
@@ -122,11 +101,24 @@ call s:conditional_nnoremap( 'gw' )
 "call s:conditional_nnoremap( 'gx' )
 
 
+"====[ Use persistent undo ]=================
+
+if has('persistent_undo')
+    set undodir=$HOME/tmp/.VIM_UNDO_FILES
+    set undolevels=5000
+    set undofile
+endif
+
+"TODO: remap u to prompt when first undoing into a previous session's history
+" (probably by calling undotree when the buffer is loaded,
+"  remembering the current sequence number, and comparing it on each undo
+
+
 "====[ Goto last location in non-empty files ]=======
 
-au BufReadPost *  if line("'\"") > 1 && line("'\"") <= line("$")
-              \|     exe "normal! g`\""
-              \|  endif
+autocmd BufReadPost *  if line("'\"") > 1 && line("'\"") <= line("$")
+                   \|     exe "normal! g`\""
+                   \|  endif
 
 
 "====[ I'm sick of typing :%s/.../.../g ]=======
@@ -138,25 +130,26 @@ vmap S                         :s//g<LEFT><LEFT>
 "====[ Toggle visibility of naughty characters ]============
 
 " Make naughty characters visible...
-" (uBB is right double angle, uB7 id middle dot)
+" (uBB is right double angle, uB7 is middle dot)
 exec "set lcs=tab:\uBB\uBB,trail:\uB7,nbsp:~"
 
 augroup VisibleNaughtiness
-    au!
-    au BufEnter  *       set list
-    au BufEnter  *.txt   set nolist
-    au BufEnter  *.vp*   set nolist
-    au BufEnter  *       if !&modifiable
-    au BufEnter  *           set nolist
-    au BufEnter  *       endif
+    autocmd!
+    autocmd BufEnter  *       set list
+    autocmd BufEnter  *.txt   set nolist
+    autocmd BufEnter  *.vp*   set nolist
+    autocmd BufEnter  *       if !&modifiable
+    autocmd BufEnter  *           set nolist
+    autocmd BufEnter  *       endif
 augroup END
 
 
 "====[ Set up smarter search behaviour ]=======================
-set incsearch                       "Lookahead as search pattern specified
-set ignorecase                      "Ignore case in all searches...
-set smartcase                       "...unless uppercase letters used
-set hlsearch                        "Highlight all search matches
+
+set incsearch       "Lookahead as search pattern is specified
+set ignorecase      "Ignore case in all searches...
+set smartcase       "...unless uppercase letters used
+set hlsearch        "Highlight all matches
 
 "Delete in normal mode to switch off highlighting till next search and clear messages...
 Nmap <silent> <BS> [Cancel highlighting]  :nohlsearch <BAR> call Toggle_CursorColumn('off')<CR>
@@ -224,12 +217,12 @@ augroup END
 "=====[ There can be only one (one Vim session per file) ]=====================
 
 augroup NoSimultaneousEdits
-    au!
-    au SwapExists * let v:swapchoice = 'o'
-    au SwapExists * echohl ErrorMsg
-    au SwapExists * echo 'Duplicate edit session (readonly)'
-    au SwapExists * echohl None
-    au SwapExists * sleep 2
+    autocmd!
+    autocmd SwapExists * let v:swapchoice = 'o'
+    autocmd SwapExists * echohl ErrorMsg
+    autocmd SwapExists * echo 'Duplicate edit session (readonly)'
+    autocmd SwapExists * echohl None
+    autocmd SwapExists * sleep 2
 augroup END
 
 
@@ -276,14 +269,14 @@ nnoremap <C-V> v
 vnoremap v <C-V>
 vnoremap <C-V> v
 
-" Make BS/DEL work as expected in visual modes (i.e. delete elected)...
+"Square up visual selections...
+set virtualedit=block
+
+" Make BS/DEL work as expected in visual modes (i.e. delete the selected text)...
 vmap <BS> x
 
 " Make vaa select the entire file...
 vmap aa VGo1G
-
-"Square up visual selections...
-set virtualedit=block
 
 " When shifting, retain selection over multiple shifts...
 vmap <expr> > KeepVisualSelection(">")
@@ -319,7 +312,7 @@ endfunction
 
 highlight WHITE_ON_BLACK ctermfg=white
 
-map <silent> ;; :call DemoCommand()<CR>
+Nmap <silent> ;; [Demonstrate Vimscript block] :call DemoCommand()<CR>
 vmap <silent> ;; :<C-U>call DemoCommand(1)<CR>
 
 function! DemoCommand (...)
@@ -367,15 +360,14 @@ Nmap <silent> ;y [Toggle syntax highlighting]
                  \ endif<CR>
 
 
-"=====[ Configure % key ]==============================
+"=====[ Configure % key (via matchit plugin) ]==============================
 
-" Match angle brackets
+" Match angle brackets...
 set matchpairs+=<:>,«:»
 
+" Match double-angles, XML tags and Perl keywords...
 let TO = ':'
 let OR = ','
-
-" Match double-angles, XML tags and Perl keywords
 let b:match_words =
 \
 \                          '<<' .TO. '>>'
@@ -400,13 +392,13 @@ set autoread        "Always reload buffer when external changes detected
 
 "           +--Disable hlsearch while loading viminfo
 "           | +--Remember marks for last 50 files
-"           | |   +--Remember up to 1000 lines in each register
+"           | |   +--Remember up to 10000 lines in each register
 "           | |   |      +--Remember up to 1MB in each register
 "           | |   |      |     +--Remember last 1000 search patterns
-"           | |   |      |     |     +---Remember last 100 commands
+"           | |   |      |     |     +---Remember last 1000 commands
 "           | |   |      |     |     |
 "           v v   v      v     v     v
-set viminfo=h,'50,<10000,s1000,/1000,:100
+set viminfo=h,'50,<10000,s1000,/1000,:1000
 
 set backspace=indent,eol,start      "BS past autoindents, line boundaries,
                                     "     and even the start of insertion
@@ -531,13 +523,16 @@ function! CallPerldoc ()
     endif
 endfunction
 
+"Complete perldoc requests with names of installed Perl modules
 command! -nargs=1 -complete=customlist,CompletePerlModuleNames Perldoc  call Perldoc_impl(<q-args>)
 
+"Undo the special wildmoding and then execute the requested perdoc lookup...
 function! Perldoc_impl (args)
     set wildmode=list:longest,full
     exec '!pd ' . a:args
 endfunction
 
+" Compile the list of installed Perl modules (and include the name under the cursor)...
 let s:module_files = readfile($HOME.'/.vim/perlmodules')
 function! CompletePerlModuleNames(prefix, cmdline, curpos)
     let cfile = expand('<cfile>')
@@ -591,9 +586,9 @@ call matchadd('WHITE_ON_RED', '_ref[ ]*[[{(]\|_ref[ ]*-[^>]')
 let g:VimMistakes = '\_^\s*\zs\%(\k:\)\?\k\+\s*[+-.]\?==\@!\|\_^\s*elsif\|;\s*\_$'
 let g:VimMistakesID = 668
 augroup VimMistakes
-    au!
-    au BufEnter  *.vim,.vimrc   call VimMistakes_AddMatch()
-    au BufLeave  *.vim,.vimrc   call VimMistakes_ClearMatch()
+    autocmd!
+    autocmd BufEnter  *.vim,.vimrc   call VimMistakes_AddMatch()
+    autocmd BufLeave  *.vim,.vimrc   call VimMistakes_ClearMatch()
 augroup END
 
 function! VimMistakes_AddMatch ()
@@ -617,26 +612,27 @@ function! PerlMake_Cleanup ()
     " Otherwise, run the test suite as well...
     else
         call RunPerlTests()
-"        call input('Press ENTER to continue')
     endif
 endfunction
 
 set makeprg=polyperl\ -vc\ %\ $*
 
 augroup PerlMake
-    au!
-    au BufReadPost quickfix  setlocal number
-                        \ |  setlocal nowrap
-                        \ |  setlocal modifiable
-                        \ |  silent! %s/^[^|]*\//.../
-                        \ |  setlocal nomodifiable
-
+    autocmd!
+    autocmd BufReadPost quickfix  setlocal number
+                             \ |  setlocal nowrap
+                             \ |  setlocal modifiable
+                             \ |  silent! %s/^[^|]*\//.../
+                             \ |  setlocal nomodifiable
 augroup END
 
+
+" Make it easy to navigate errors (and vimgreps)...
+
 nmap <silent> <RIGHT>         :cnext<CR>
-nmap <silent> <RIGHT><RIGHT>  :cnf<CR>
+nmap <silent> <RIGHT><RIGHT>  :cnf<CR><C-G>
 nmap <silent> <LEFT>          :cprev<CR>
-nmap <silent> <LEFT><LEFT>    :cpf<CR>
+nmap <silent> <LEFT><LEFT>    :cpf<CR><C-G>
 
 
 "=====[ Run a Perl module's test suite ]=========================
@@ -646,8 +642,8 @@ let g:PerlTests_search_height = 5             " ...How far up to search
 let g:PerlTests_test_dir      = '/t'          " ...Where to look for tests
 
 augroup Perl_Tests
-    au!
-    au BufEnter *.pm   Nmap <buffer> ;t [Run local test suite] :call RunPerlTests()<CR>
+    autocmd!
+    autocmd BufEnter *.pm   Nmap <buffer> ;t [Run local test suite] :call RunPerlTests()<CR>
 augroup END
 
 function! RunPerlTests ()
@@ -683,9 +679,9 @@ endfunction
 "=====[ Auto-setup for Perl scripts and modules ]===========
 
 augroup Perl_Setup
-    au!
-    au BufNewFile *.p[lm] 0r !file_template <afile>
-    au BufNewFile *.p[lm] /^[ \t]*[#].*implementation[ \t]\+here/
+    autocmd!
+    autocmd BufNewFile *.p[lm] 0r !file_template <afile>
+    autocmd BufNewFile *.p[lm] /^[ \t]*[#].*implementation[ \t]\+here/
 augroup END
 
 
@@ -734,17 +730,27 @@ call SmartcomAdd( 's{',    '}{}xms',  "\<CR>\<C-D>\<ESC>O\<C-D>\<TAB>",         
 call SmartcomAdd( '\*\*',  ANYTHING,  '**',                              {'restore':1} )
 call SmartcomAdd( '\*\*',  '\*\*',    NOTHING,                                         )
 
-                " Left         Right   Insert                            Where
-                " ==========   =====   =============================     ===================
+" In the middle of a keyword: delete the rest of the keyword before completing...
+                " Left     Right                    Insert
+                " =====    =====                    =======================
+call SmartcomAdd( '\k',    '\k\+\%(\k\|\n\)\@!',    "\<ESC>dwi\<C-X>\<C-N>",           )
+call SmartcomAdd( '\k',    '\k\+\_$',               "\<ESC>dwa\<C-X>\<C-N>",           )
+
+                " Left         Right   Insert                                  Where
+                " ==========   =====   =============================           ===================
 " Vim keywords...
-call SmartcomAdd( '^\s*func',  EOL,    "tion!\<CR>endfunction\<UP> ",    {'filetype':'vim'}  )
+call SmartcomAdd( '^\s*func',  EOL,    "tion!\<CR>endfunction\<UP> ",          {'filetype':'vim'}  )
+call SmartcomAdd( '^\s*for',   EOL,    " ___ in ___\n___\n\<C-D>endfor\n___",  {'filetype':'vim'} )
+call SmartcomAdd( '^\s*if',    EOL,    " ___ \n___\n\<C-D>endif\n___",         {'filetype':'vim'} )
+call SmartcomAdd( '^\s*while', EOL,    " ___ \n___\n\<C-D>endwhile\n___",      {'filetype':'vim'} )
+call SmartcomAdd( '^\s*try',   EOL,    "\n\t___\n\<C-D>catch\n\t___\n\<C-D>endtry\n___", {'filetype':'vim'} )
 
 " Perl keywords...
-call SmartcomAdd( '^\s*for',   EOL,    " my $___ (___) {\n___\n}\n___",  {'filetype':'perl'} )
-call SmartcomAdd( '^\s*if',    EOL,    " (___) {\n___\n}\n___",          {'filetype':'perl'} )
-call SmartcomAdd( '^\s*while', EOL,    " (___) {\n___\n}\n___",          {'filetype':'perl'} )
-call SmartcomAdd( '^\s*given', EOL,    " (___) {\n___\n}\n___",          {'filetype':'perl'} )
-call SmartcomAdd( '^\s*when',  EOL,    " (___) {\n___\n}\n___",          {'filetype':'perl'} )
+call SmartcomAdd( '^\s*for',   EOL,    " my $___ (___) {\n___\n}\n___",        {'filetype':'perl'} )
+call SmartcomAdd( '^\s*if',    EOL,    " (___) {\n___\n}\n___",                {'filetype':'perl'} )
+call SmartcomAdd( '^\s*while', EOL,    " (___) {\n___\n}\n___",                {'filetype':'perl'} )
+call SmartcomAdd( '^\s*given', EOL,    " (___) {\n___\n}\n___",                {'filetype':'perl'} )
+call SmartcomAdd( '^\s*when',  EOL,    " (___) {\n___\n}\n___",                {'filetype':'perl'} )
 
 " Complete Perl module loads with the names of Perl modules...
 call SmartcomAddAction( '^\s*use\s\+\k\+', "",
@@ -768,17 +774,21 @@ Nmap ,,, [Debug current file]  :w<CR>:!clear;echo;echo;run -d %<CR>
 
 "=====[ Show help files in a new tab, plus add a shortcut for helpg ]==============
 
+"Only apply to .txt files...
 augroup HelpInTabs
-    au!
-    au BufEnter  *.txt   call HelpInNewTab()
+    autocmd!
+    autocmd BufEnter  *.txt   call HelpInNewTab()
 augroup END
 
+"Only apply to help files...
 function! HelpInNewTab ()
     if &buftype == 'help'
+        "Convert the help window to a tab...
         execute "normal \<C-W>T"
     endif
 endfunction
 
+"Simulate a regular cmap, but only if the expansion starts at column 1...
 function! CommandExpandAtCol1 (from, to)
     if strlen(getcmdline()) || getcmdtype() != ':'
         return a:from
@@ -787,6 +797,7 @@ function! CommandExpandAtCol1 (from, to)
     endif
 endfunction
 
+"Expand hh -> helpg...
 cmap <expr> hh CommandExpandAtCol1('hh','helpg ')
 
 
@@ -881,18 +892,18 @@ function! NewTabSpacing (newtabsize)
 endfunction
 
 " Note, these are all T-<SHIFTED-DIGIT>, which is easier to type...
-map <silent> T@ :call NewTabSpacing(2)<CR>
-map <silent> T# :call NewTabSpacing(3)<CR>
-map <silent> T$ :call NewTabSpacing(4)<CR>
-map <silent> T% :call NewTabSpacing(5)<CR>
-map <silent> T^ :call NewTabSpacing(6)<CR>
-map <silent> T& :call NewTabSpacing(7)<CR>
-map <silent> T* :call NewTabSpacing(8)<CR>
-map <silent> T( :call NewTabSpacing(9)<CR>
+nmap <silent> T@ :call NewTabSpacing(2)<CR>
+nmap <silent> T# :call NewTabSpacing(3)<CR>
+nmap <silent> T$ :call NewTabSpacing(4)<CR>
+nmap <silent> T% :call NewTabSpacing(5)<CR>
+nmap <silent> T^ :call NewTabSpacing(6)<CR>
+nmap <silent> T& :call NewTabSpacing(7)<CR>
+nmap <silent> T* :call NewTabSpacing(8)<CR>
+nmap <silent> T( :call NewTabSpacing(9)<CR>
 
 " Convert to/from spaces/tabs...
-map <silent> TS :set   expandtab<CR>:%retab!<CR>
-map <silent> TT :set noexpandtab<CR>:%retab!<CR>
+nmap <silent> TS :set   expandtab<CR>:%retab!<CR>
+nmap <silent> TT :set noexpandtab<CR>:%retab!<CR>
 
 
 "=====[ Correct common mistypings in-the-fly ]=======================
@@ -952,13 +963,17 @@ let s:problem_words = [
 let s:problem_words_pat     = join(s:problem_words, '\|')
 let s:problem_words_pat_str = substitute(s:problem_words_pat, "'", "''", 'g')
 
+" Create a pattern that matches repeated words...
+
+let s:repeat_matcher = '\(\S\+\)\@>\_s\+\1'
+
 " Create a command that will match that pattern...
 let s:words_matcher
-\   = 'let w:check_grammar = matchadd(''BOLD'', ''\c\<\(' . s:problem_words_pat_str . '\)\>'')'
+\   = 'let w:check_grammar = matchadd(''BOLD'', ''\c\<\%(' . s:problem_words_pat_str . '\|' . s:repeat_matcher . '\)\>'')'
 
 " Create a command that will find those words...
 let s:words_finder
-\   = '/\c\<\(' . s:problem_words_pat . '\)\>'
+\   = '/\c\<\%(' . s:problem_words_pat . '\|' . s:repeat_matcher . '\)\>'
 
 " Enbolden problematic words...
 highlight BOLD  term=bold cterm=bold gui=bold
@@ -981,22 +996,23 @@ function! CheckGrammar ()
         exec s:words_matcher
 
         " Return a search command, to be executed by the mapping...
-        return s:words_finder
+        return ""
+        "s:words_finder
     endif
 endfunction
 
 " Toggle grammar checking...
-map <silent> ;g :exec CheckGrammar()<CR>
+Nmap <silent> ;g [Toggle grammar checking] :exec CheckGrammar()<CR>
 
 
 "=====[ Add or subtract comments ]===============================
 
 " Work out what the comment character is, by filetype...
-au BufNewFile,BufRead   *                                 let b:cmt = exists('b:cmt') ? b:cmt : ''
-au FileType             *sh,awk,python,perl,perl6,ruby    let b:cmt = exists('b:cmt') ? b:cmt : '#'
-au FileType             vim                               let b:cmt = exists('b:cmt') ? b:cmt : '"'
+autocmd BufNewFile,BufRead   *                                 let b:cmt = exists('b:cmt') ? b:cmt : ''
+autocmd FileType             *sh,awk,python,perl,perl6,ruby    let b:cmt = exists('b:cmt') ? b:cmt : '#'
+autocmd FileType             vim                               let b:cmt = exists('b:cmt') ? b:cmt : '"'
 
-" Work out whether the line has a comment tehn reverse that condition...
+" Work out whether the line has a comment then reverse that condition...
 function! ToggleComment ()
     " What's the comment character???
     let comment_char = exists('b:cmt') ? b:cmt : '#'
@@ -1061,10 +1077,10 @@ set cursorcolumn
 
 " Toggle cursor row highlighting on request...
 highlight CursorLine   term=bold ctermfg=black ctermbg=cyan  cterm=bold
-map <silent> ;r :set cursorline!<CR>
+Nmap <silent> ;r [Toggle cursor line highlighting] :set cursorline!<CR>
 
 " Toggle cursor column highlighting on request...
-map <silent> ;c :silent call Toggle_CursorColumn('flip')<CR>
+Nmap <silent> ;c [Toggle cursor row highlighting] :silent call Toggle_CursorColumn('flip')<CR>
 
 " Implement cursor toggle...
 let g:cursorcolumn_visible = 0
@@ -1082,12 +1098,12 @@ endfunction
 "=====[ Highlight spelling errors on request ]===================
 
 set spelllang=en_au
-map <silent> ;s :setlocal invspell<CR>
+Nmap <silent> ;s [Toggle spell-checking] :setlocal invspell<CR>
 
 
 "======[ Create a toggle for the XML completion plugin ]=======
 
-map ;x <Plug>XMLMatchToggle
+Nmap ;x [Toggle XML completion] <Plug>XMLMatchToggle
 
 
 "======[ Order-preserving uniqueness ]=========================
@@ -1126,7 +1142,7 @@ endfunction
 
 " Only in visual mode...
 vmap  u :call Uniq()<CR>
-vmap  U :call Uniq(1)<CR>
+vmap  U :call Uniq('ignore whitespace')<CR>
 
 
 "====[ Make normalized search use NFKC ]=======
