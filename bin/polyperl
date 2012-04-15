@@ -9,9 +9,8 @@ use 5.010;
 ### perl semantics according to a Perl program's "use VERSION" declaration
 
 # Defaults...
-my $DEFAULT_PERL    = '/usr/bin/perl';
-my $DEFAULT_VERSION = '5.014';
-my $DEFAULT_APP     = $DEFAULT_PERL;
+my $DEFAULT_PERL = '/usr/bin/perl';
+my $DEFAULT_APP  = $DEFAULT_PERL;
 
 # Perlbrew available versions...
 my @perlbrew_versions = sort map { m{ (perl-\S*) }xms ? $1 : () } `perlbrew list`;
@@ -44,7 +43,42 @@ my $is_perl5 = $config{vim_compile}
 
 # If it's a Perl file...
 if ($is_perl5) {
-    call_with_best_perl($source_code);
+
+    # Is there a specific Perl version specified???
+    my @version = get_version($source_code, qr{^ \s* use \s+}xms);
+
+    # Otherwise, find perlbrew version that best satisfies the requirement...
+    my @candidates;
+    for my $candidate_perl (@perlbrew_versions) {
+        my @candidate_version = get_version($candidate_perl, qr{ perl- }xms);
+        if (candidate_satisfies(\@candidate_version, \@version)) {
+            push @candidates, $candidate_perl;
+        }
+    }
+
+    # Call the right version via perlbrew, if there is a right version...
+    if (@candidates) {
+        call_via_perlbrew($candidates[-1], \%config, "$source_file @ARGV");
+    }
+    # Otherwise, follow the shebang line...
+    elsif (length $shebang) {
+        if ($config{vim_compile}) {
+            _convert_to_vim_errors(`$shebang -c $source_file >& /dev/stdout `);
+        }
+        else {
+            exec "$shebang $source_file @ARGV";
+        }
+    }
+    # Otherwise, use the default...
+    else {
+        if ($config{vim_compile}) {
+            _convert_to_vim_errors(`$DEFAULT_PERL -c $source_file >& /dev/stdout`);
+        }
+        else {
+            exec "$DEFAULT_PERL $source_file @ARGV";
+        }
+    }
+
 }
 
 # If there's a shebang line, use that...
@@ -54,7 +88,7 @@ elsif (length $shebang) {
 
 # If no idea, assume it's the default app...
 else {
-    call_with_best_perl($source_code);
+    exec "$DEFAULT_APP $source_file @ARGV";
 }
 
 
@@ -149,46 +183,4 @@ sub _convert_to_vim_errors {
         open my $terminal, '>', '/dev/tty';
         say $terminal q{No errors}
     }
-}
-
-# Use most appropriate perlbrew'd perl...
-sub call_with_best_perl {
-    my ($source_code) = @_; 
-
-    # Is there a specific Perl version specified???
-    my @version = get_version($source_code, qr{^ \s* use \s+}xms);
-    @version = $DEFAULT_VERSION if ! @version;
-
-    # Otherwise, find perlbrew version that best satisfies the requirement...
-    my @candidates;
-    for my $candidate_perl (@perlbrew_versions) {
-        my @candidate_version = get_version($candidate_perl, qr{ perl- }xms);
-        if (candidate_satisfies(\@candidate_version, \@version)) {
-            push @candidates, $candidate_perl;
-        }
-    }
-
-    # Call the right version via perlbrew, if there is a right version...
-    if (@candidates) {
-        call_via_perlbrew($candidates[-1], \%config, "$source_file @ARGV");
-    }
-    # Otherwise, follow the shebang line...
-    elsif (length $shebang) {
-        if ($config{vim_compile}) {
-            _convert_to_vim_errors(`$shebang -c $source_file >& /dev/stdout `);
-        }
-        else {
-            exec "$shebang $source_file @ARGV";
-        }
-    }
-    # Otherwise, use the default...
-    else {
-        if ($config{vim_compile}) {
-            _convert_to_vim_errors(`$DEFAULT_PERL -c $source_file >& /dev/stdout`);
-        }
-        else {
-            exec "$DEFAULT_PERL $source_file @ARGV";
-        }
-    }
-
 }

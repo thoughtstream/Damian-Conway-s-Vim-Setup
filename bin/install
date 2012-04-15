@@ -1,0 +1,98 @@
+#! /usr/bin/perl -ws
+use 5.010;
+
+use File::Path;
+use File::Basename;
+use Cwd 'realpath';
+use IO::Prompter;
+
+use Env qw(HOME PERL5LIB PERL6LIB);
+use vars qw ($f $v);
+
+$bindir = "$HOME/bin/";
+
+$Perl5LibDir = "$PERL5LIB";
+$Perl5LibDir =~ s{\A (?: [.] / [^:]+ :)+ }{}smx;
+$Perl5LibDir =~ s{:.*}{}xms;
+
+$Perl6LibDir = "$PERL6LIB";
+$Perl6LibDir =~ s{\A (?: [.] / [^:]+ :)+ }{}smx;
+$Perl6LibDir =~ s{:.*}{}xms;
+
+if (!@ARGV) {
+    my $target = basename(realpath()).".pm";
+    $target =~ s{-}{/}gxms;
+
+    LOCATION:
+    for my $location (q{}, q{lib/}, q{slib/}, q{lib6/}) {
+        if (-e "$location$target") {
+            @ARGV = "$location$target";
+            last LOCATION;
+        }
+    }
+}
+
+my @targets = @ARGV;
+@ARGV = ();
+
+if (!@targets) {
+    say "Can't find anything to install";
+    exit;
+}
+
+FILE:
+for my $file (@targets) {
+   if ($file =~ /[.]pm$/) {
+      open my $INPUT, '<', $file 
+        or die "Can't open $file\n";
+
+      while (<$INPUT>) {
+         if (/^\s*package\s+([\w:]+)/) {
+            $destination = "$Perl5LibDir/$1.pm";
+            $destination =~ s#::#/#g;
+            install($file,$destination);
+            next FILE;
+         }
+         if (/^\s*module\s+([\w'-]+ (?: :: [\w'-]+ )* )/x) {
+            $destination = "$Perl6LibDir/$1.pm";
+            $destination =~ s{::}{/}g;
+            $destination =~ s{: $}{}g;
+            install($file,$destination);
+            next FILE;
+         }
+      }
+   }
+   else {
+      install($file,$bindir.basename($file));
+   }
+}
+
+system 'perlmodules_buildlist -s';
+
+sub install {
+   my ($from, $to) = @_;
+   $destdir = dirname $to;
+   print "Installing:  $from  -->  $to\n" if $v;
+   mkpath $destdir,1,0755;
+
+   if (!-e $from) {
+      say "Can't find '$from' to install";
+      return;
+   }
+
+   if (-e $to) {
+      if (`diff $from $to`) {
+         return
+            if !$f
+            && !prompt -yn1r, -default=>'y',
+                       "A version of $from is already installed in $destdir.\nReplace it? [y]:";
+         say 'Replacing it.';
+         system("/bin/rm -f $to");
+      }
+      else {
+         print "This version of $from is already installed in $destdir.\n";
+         return;
+      }
+   }
+   system("cp $from $to");
+}

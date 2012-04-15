@@ -1,0 +1,53 @@
+#! /usr/bin/env polyperl
+use 5.015;
+use warnings;
+
+{
+    package TAP::Formatter::Console::NoTimeStamp;
+    use base 'TAP::Formatter::Console';
+    sub _format_name {
+        my $self = shift;
+
+        no warnings 'once';
+        local *timer = sub { 0 };
+
+        $self->SUPER::_format_name(@_);
+    }
+}
+
+# Locate Perl 5 tests, unless explicitly specified...
+@ARGV = glob("*.t")   unless @ARGV;
+@ARGV = glob("t/*.t") unless @ARGV;
+@ARGV = "test.pl"     unless @ARGV || !-r "test.pl";
+
+use TAP::Harness;
+my $harness = TAP::Harness->new({
+    timer           => 1,
+    show_count      => 1,
+    color           => 1,
+    formatter_class => 'TAP::Formatter::Console::NoTimeStamp',
+});
+
+$harness->runtests( fix_6tests(@ARGV) )  if  @ARGV;
+say "Couldn't find any tests to run"     if !@ARGV;
+
+
+sub fix_6tests {
+    my @tests = @_;
+
+    for my $test (@tests) {
+        if (`grep '#\!.*rakudo' $test`) {
+            use File::Temp 'tempfile';
+
+            my ($fh, $filename) = tempfile("${test}    tmp=XXXX", UNLINK => 1);
+            say {$fh} "close(*STDIN); system('polyperl $test')";
+            close $fh;
+            $test = $filename;
+            $SIG{INT} = sub { system 'rm -rf *tmp=*'; exit };
+        }
+    }
+
+
+    return @tests;
+}
+

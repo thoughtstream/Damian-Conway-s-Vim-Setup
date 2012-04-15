@@ -1,0 +1,18 @@
+#! /usr/bin/perl -w
+
+my $MODULE_FILE = "$ENV{HOME}/.vim/perlmodules";
+
+my $pattern = join '|', @ARGV, '/';
+
+my @files = `ls -p`;
+chomp @files;
+
+my $modules = do{ local (@ARGV, $/) = $MODULE_FILE; <> };
+$modules =~ s/\s+/ /g;
+
+print "$modules ";
+
+for my $file (@files) {
+    print "$file " if $file =~ /(?:$pattern)\Z/o;
+}
+print "\n";

@@ -1,0 +1,10 @@
+#! /usr/bin/perl -w
+
+my $FILENAME = shift;
+
+$FILENAME =~ s{^.*/}{}xms;
+
+my $TARGET_WINDOW
+    = qq{every window whose (name begins with "$FILENAME" and name ends with "VIM")};
+
+system( qq{osascript -e 'tell application "Terminal" to set frontmost of $TARGET_WINDOW to true'});

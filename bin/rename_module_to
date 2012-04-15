@@ -1,0 +1,91 @@
+#! /usr/bin/env polyperl
+use strict;
+use warnings;
+use autodie;
+use 5.014;
+
+use Cwd;
+
+sub files_matching;
+
+# Get old and new module names (in various forms)...
+my $old_mod_name_dashed  = getcwd =~ s{.*/}{}r;
+my $old_mod_name_colons  = $old_mod_name_dashed =~ s{-}{::}gr;
+my $old_mod_name_slashed = $old_mod_name_dashed =~ s{-}{/}gr;
+
+my $new_mod_name_dashed  = shift =~ s{::|/}{-}gr;
+my $new_mod_name_colons  = $new_mod_name_dashed =~ s{-}{::}gr;
+my $new_mod_name_slashed = $new_mod_name_dashed =~ s{-}{/}gr;
+
+# Report transformation...
+say "Renaming:  $old_mod_name_colons  -->  $new_mod_name_colons\n";
+
+# Make a backup...
+if (0 != system "entar -q ../$old_mod_name_dashed.backup.tar.gz *") {
+    die "Couldn't make back-up. Won't modify files\n";
+}
+
+# Track modifications...
+my %modified;
+
+# Change various forms of the module name...
+modify_name(   $old_mod_name_dashed  =>    $new_mod_name_dashed );
+modify_name(lc $old_mod_name_dashed  => lc $new_mod_name_dashed );
+modify_name(   $old_mod_name_slashed =>    $new_mod_name_slashed);
+modify_name(   $old_mod_name_colons  =>    $new_mod_name_colons );
+
+
+# Rename module files...
+my $newdir = $new_mod_name_slashed =~ s{/[^/]+$}{}r;
+system "mkdir -p lib/$newdir";
+system "mv 'lib/$old_mod_name_slashed.pm' 'lib/$new_mod_name_slashed.pm'";
+
+# Clean up unused old directory...
+my $olddir = $old_mod_name_slashed =~ s{/[^/]+$}{}r;
+my @not_empty = `ls lib/$olddir`;
+if (not @not_empty) {
+    system "rm -rf lib/$olddir";
+}
+
+# Rename current directory...
+chdir '..';
+system "mv '$old_mod_name_dashed' '$new_mod_name_dashed'";
+$modified{"../$old_mod_name_dashed (--> ../$new_mod_name_dashed)"} = 1;
+
+
+# Report...
+say 'Modified the following files...';
+say "\t$_" for sort keys %modified;
+
+
+
+# Locate candidates for modification...
+sub files_matching {
+    my $pattern = shift;
+
+    my @files = `grep -l -r '$pattern' .`;
+    chomp @files;
+    return @files;
+}
+
+# Utility sub to do the work of rewriting files...
+sub modify_name {
+    my ($from, $to) = @_;
+
+    # Find every file with this form of the module name in it...
+    for my $file (files_matching $from) {
+        # Grab the contents...
+        my $contents = do{ local(@ARGV,$/) = $file; <> };
+
+        # Transform the name...
+        $contents =~ s{\b$from\b}{$to}g;
+
+        # Write the modified contents back...
+        open my $target, '>', $file;
+        say {$target} $contents;
+
+        # Remember it was changed...
+        $modified{$file} = 1;
+    }
+}
+

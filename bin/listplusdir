@@ -1,0 +1,11 @@
+#! /usr/bin/perl -w
+
+my $pattern = join '|', @ARGV, '/';
+
+my @files = `ls -p`;
+chomp @files;
+
+for my $file (@files) {
+    print "$file " if $file =~ /(?:$pattern)\Z/o;
+}
+print "\n";

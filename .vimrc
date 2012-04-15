@@ -1,6 +1,15 @@
+"====[ Ensure autodoc'd plugins are supported ]===========
+
+runtime plugin/autodoc.vim
+
+
 "====[ Work out what kind of file this is ]========
 
 filetype plugin on
+
+" .t bilong perl!!!
+
+autocmd BufNewFile,BufRead  *.t   setfiletype perl
 
 
 "=====[ Comments are important ]==================
@@ -22,6 +31,12 @@ augroup END
 
 Nmap <silent>  ;v   [Edit .vimrc]          :next $MYVIMRC<CR>
 Nmap           ;vv  [Edit .vim/plugin/...] :next ~/.vim/plugin/
+
+
+"====[ Edit my temporary working files ]====================
+
+Nmap tt  [Edit temporary files] :next ~/tmp/temporary_file
+
 
 
 "=====[ Edit files in local bin directory ]========
@@ -218,12 +233,17 @@ augroup END
 
 augroup NoSimultaneousEdits
     autocmd!
-    autocmd SwapExists * let v:swapchoice = 'o'
-    autocmd SwapExists * echohl ErrorMsg
-    autocmd SwapExists * echo 'Duplicate edit session (readonly)'
-    autocmd SwapExists * echohl None
-    autocmd SwapExists * sleep 2
+    autocmd SwapExists *  let v:swapchoice = 'o'
+    autocmd SwapExists *  echohl ErrorMsg
+    autocmd SwapExists *  echo 'Duplicate edit session (readonly)'
+    autocmd SwapExists *  echohl None
+    autocmd SwapExists *  call Make_session_finder( expand('<afile>') )
+    autocmd SwapExists *  sleep 2
 augroup END
+
+function! Make_session_finder (filename)
+    exec 'nnoremap ss :!terminal_promote_vim_session ' . a:filename . '<CR>:q!<CR>'
+endfunction
 
 
 "=====[ Enable smartwrapping ]==================================
@@ -428,14 +448,15 @@ set scrolloff=2                     "Scroll when 2 lines from top/bottom
 
 set ruler                           "Show cursor location info on status line
 
+"====[ Simplify textfile backups ]============================================
+
+" Back up the current file
+Nmap BB [Back up current file]  :!bak -q %<CR><CR>:echomsg "Backed up" expand('%')<CR>
 
 "=====[ Remap various keys to something more useful ]========================
 
 " Use space to jump down a page (like browsers do)...
 nnoremap <Space> <PageDown>
-
-" Back up the current file
-Nmap BB [Back up current file]  :!bak %<CR><CR>:echomsg "Backed up" expand('%')<CR>
 
 " Edit a file...
 nmap e :n<SPACE>
@@ -451,7 +472,7 @@ vmap          F :!format -T4 -all -
 vmap <silent> f :!format -T4 -all<CR>
 
 " Install current file and swap to alternate file...
-Nmap IP [Install current file and swap to alternate] :!install -f %<CR>g
+Nmap IP [Install current file and swap to alternate] :!install -f %<CR>
 
 
 " Add *** as **/* on command-line...
@@ -459,9 +480,12 @@ cmap *** **/*
 
 
 " Take off and nuke the entire buffer contents from space
-" (It's the only way to be sure)
+" (It's the only way to be sure)...
 nmap XX 1GdG
 
+" Replace the current buffer with a copy of the most recent...
+
+nmap RR XX:0r#<CR><C-G>
 
 " Insert cut marks...
 nmap -- A<CR><CR><CR><ESC>k6i-----cut-----<ESC><CR>
@@ -583,12 +607,12 @@ highlight WHITE_ON_RED    ctermfg=white  ctermbg=red
 call matchadd('WHITE_ON_RED', '_ref[ ]*[[{(]\|_ref[ ]*-[^>]')
 
 " Emphasize typical mistakes a Perl hacker makes in .vim files...
-let g:VimMistakes = '\_^\s*\zs\%(\k:\)\?\k\+\s*[+-.]\?==\@!\|\_^\s*elsif\|;\s*\_$'
+let g:VimMistakes = '\_^\s*\zs\%(my\s\+\)\?\%(\k:\)\?\k\+\%(\[.\{-}\]\)\?\s*[+-.]\?==\@!\|\_^\s*elsif\|;\s*\_$\|\_^\s*#.*'
 let g:VimMistakesID = 668
 augroup VimMistakes
     autocmd!
-    autocmd BufEnter  *.vim,.vimrc   call VimMistakes_AddMatch()
-    autocmd BufLeave  *.vim,.vimrc   call VimMistakes_ClearMatch()
+    autocmd BufEnter  *.vim,*.vimrc   call VimMistakes_AddMatch()
+    autocmd BufLeave  *.vim,*.vimrc   call VimMistakes_ClearMatch()
 augroup END
 
 function! VimMistakes_AddMatch ()
@@ -643,7 +667,8 @@ let g:PerlTests_test_dir      = '/t'          " ...Where to look for tests
 
 augroup Perl_Tests
     autocmd!
-    autocmd BufEnter *.pm   Nmap <buffer> ;t [Run local test suite] :call RunPerlTests()<CR>
+    autocmd BufEnter *.p[lm]  Nmap <buffer> ;t [Run local test suite] :call RunPerlTests()<CR>
+    autocmd BufEnter *.t      Nmap <buffer> ;t [Run local test suite] :call RunPerlTests()<CR>
 augroup END
 
 function! RunPerlTests ()
@@ -733,8 +758,8 @@ call SmartcomAdd( '\*\*',  '\*\*',    NOTHING,                                  
 " In the middle of a keyword: delete the rest of the keyword before completing...
                 " Left     Right                    Insert
                 " =====    =====                    =======================
-call SmartcomAdd( '\k',    '\k\+\%(\k\|\n\)\@!',    "\<ESC>dwi\<C-X>\<C-N>",           )
-call SmartcomAdd( '\k',    '\k\+\_$',               "\<ESC>dwa\<C-X>\<C-N>",           )
+"call SmartcomAdd( '\k',    '\k\+\%(\k\|\n\)\@!',    "\<C-O>cw\<C-X>\<C-N>",           )
+"call SmartcomAdd( '\k',    '\k\+\_$',               "\<C-O>cw\<C-X>\<C-N>",           )
 
                 " Left         Right   Insert                                  Where
                 " ==========   =====   =============================           ===================
@@ -763,7 +788,7 @@ call SmartcomAddAction( '^\s*use\s\+\k\+', "",
 " Insert various shebang lines...
 iab hbc #! /bin/csh
 iab hbs #! /bin/sh
-iab hbp #! /usr/bin/env perl<CR>use strict;<CR>use warnings;<CR>use 5.010;
+iab hbp #! /usr/bin/env polyperl<CR>use 5.014; use warnings; use autodie;<CR>
 iab hbr #! /Users/damian/bin/rakudo*<CR>use v6;
 
 
@@ -805,9 +830,13 @@ cmap <expr> hh CommandExpandAtCol1('hh','helpg ')
 
 " Paste carefully in Normal mode...
 nmap <silent> <C-P> :set paste<CR>
+                   \:let b:prevlen = len(getline(0,'$'))<CR>
                    \!!pbtranspaste<CR>
                    \:set nopaste<CR>
                    \:set fileformat=unix<CR>
+                   \mv
+                   \:exec 'normal ' . (len(getline(0,'$')) - b:prevlen) . 'j'<CR>
+                   \V`v
 
 " When in Visual mode, paste over the selected region...
 vmap <silent> <C-P> x:call TransPaste(visualmode())<CR>
@@ -870,7 +899,16 @@ endfunction
 
 "=====[ Convert file to different tabspacings ]=====================
 
+function! InferTabspacing ()
+    return min(filter(map(getline(1,'$'),'strlen(matchstr(v:val, ''^\s\+''))'),'v:val != 0'))
+endfunction
+
 function! NewTabSpacing (newtabsize)
+    " Determine apparent tabspacing, if necessary...
+    if &tabstop == 4
+        let &tabstop = InferTabspacing()
+    endif
+
     " Preserve expansion, if expanding...
     let was_expanded = &expandtab
 
@@ -904,6 +942,7 @@ nmap <silent> T( :call NewTabSpacing(9)<CR>
 " Convert to/from spaces/tabs...
 nmap <silent> TS :set   expandtab<CR>:%retab!<CR>
 nmap <silent> TT :set noexpandtab<CR>:%retab!<CR>
+nmap <silent> TF TST$
 
 
 "=====[ Correct common mistypings in-the-fly ]=======================
@@ -1176,3 +1215,82 @@ let g:gundo_right = 1
 " Access via a simple mapping...
 Nmap ;u [Show the undo tree]  :GundoToggle<CR>
 
+
+"====[ Regenerate help tags when directly editing a help file ]=================
+
+augroup HelpTags
+    au!
+    autocmd BufWritePost ~/.vim/doc/*   :helptags ~/.vim/doc
+augroup END
+
+"====[ Formatting for .lei files ]=======================================
+
+augroup LEI
+    autocmd!
+    autocmd BufEnter *.lei  nmap =  vip!sort -bdfu<CR>vip:call LEI_format()<CR>
+augroup END
+
+function! LEI_format () range
+    let [from, to] = [a:firstline, a:lastline]
+
+    " Acquire data...
+    let lines = getline(from, to)
+
+    " Ignore comments and category descriptions...
+    if lines[0] =~ '^\S'
+        return
+    endif
+
+    " Subdivide each line into singular/plural/classical plural columns...
+    let fields = []
+    for line in lines
+        let new_fields = split(line, '\s*\(|\|=>\)\s*')
+        call add(fields, ["","",""])
+        for col_num in [0,1,2]
+            let fields[-1][col_num] = get(new_fields, col_num, "")
+        endfor
+    endfor
+
+    " Work out how wide the columns need to be...
+    let max_width = [0,0]
+    for field_num in range(len(fields))
+        for col_num in [0,1]
+            let max_width[col_num] = max([max_width[col_num], strlen(fields[field_num][col_num])])
+        endfor
+    endfor
+
+    " Are there any classical alternatives???
+    let has_classical = match(lines, '|') >= 0
+    let field_template
+    \   = has_classical
+     \    ? '%-' . max_width[0] . 's  =>  %-' . max_width[1] . 's  |  %s'
+      \   : '%-' . max_width[0] . 's  =>  %-s'
+
+    " Reformat each line...
+    for field_num in range(len(fields))
+        let updated_line
+        \   = has_classical
+         \    ? printf(field_template, fields[field_num][0], fields[field_num][1], fields[field_num][2])
+          \   : printf(field_template, fields[field_num][0], fields[field_num][1])
+        call setline(from + field_num, substitute(updated_line,'\s*$','',''))
+    endfor
+endfunction
+
+
+"=====[ Perl folding ]=====================
+
+nmap <silent> zp /^\s*sub\s\+\w\+<CR>
+                \:nohlsearch<CR>
+                \``
+                \zz
+                \:call SetZPHighlight()<CR>
+
+function! SetZPHighlight ()
+    if exists('b:ZPHighlightID')
+        call matchdelete(b:ZPHighlightID)
+        unlet b:ZPHighlightID
+    endif
+    if &foldlevel == 0
+        let b:ZPHighlightID = matchadd('WHITE_ON_BLACK','^\s*sub\s\+\w\+')
+    endif
+endfunction

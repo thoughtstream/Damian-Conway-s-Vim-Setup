@@ -67,45 +67,16 @@ let s:PREVTEXTLINE = '\S.*\n\_.*\%#'
 
 function! <SID>CompletePadding ()
     " Grab the necessary context...
-    let col = col('.')
-    let curr_line = getline('.')
-
-    " Is there a leader on the current line???
-    let leader = matchstr(curr_line, '[^[:alnum:]]\+\%' . col . 'c')
-
-    " If so, find the preceding line with the same padding...
-    if strlen(leader)
-        " Start at the preceding line...
-        let cursorpos = getpos('.')
-        let cursorpos[1] -= 1
-        call setpos('.',cursorpos)
-
-        " Find the leader at or after the current column...
-        let startcol = cursorpos[2] - strlen(leader)
-        let prev_line_num = search('\%>' . startcol . 'c\V'.escape(leader,'\'), 'bnW')
-        echo '>>>' prev_line_num
-
-        " Restore cursor position...
-        let cursorpos[1] += 1
-        call setpos('.',cursorpos)
-
-        " If no pattern for the leader, add a tabspace worth of leader char...
-        if !prev_line_num
-            return repeat(leader[0], &tabstop - cursorpos[2] % &tabstop)
-        endif
-
-    " Otherwise, find a previous line with suitable nonspace padding...
-    else " => no leader
-        let prev_line_num = search(s:PREVTEXTLINE,'bnW')
-    endif
+    let col = col('.')-1                " ...strings are zero-based
+    let prev_line_num = search(s:PREVTEXTLINE,'bnW')
+    let prev_line = getline(prev_line_num ? prev_line_num : line('.')-1)
 
     " Work out what the previous line's padding is....
-    let prev_line = getline(prev_line_num ? prev_line_num : line('.')-1)
-    let padding = matchlist(prev_line, s:PREVPADDING, col-1)
+    let padding = matchlist(prev_line, s:PREVPADDING, col)
 
     " If no padding, then use spaces...
     if empty(padding)
-        let padding = matchlist(prev_line, s:PREVSPACING, col-1)
+        let padding = matchlist(prev_line, s:PREVSPACING, col)
     endif
 
     "If still no padding, give up...

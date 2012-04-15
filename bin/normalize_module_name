@@ -1,0 +1,14 @@
+#! /usr/bin/env perl
+use strict;
+use warnings;
+
+for my $name (@ARGV) {
+    if ($name =~ /^-/) {
+        print $name;
+    }
+    else {
+        print join '::', map { ucfirst($_) } split /::/, $name;
+    }
+    print " ";
+}
+print "\n";

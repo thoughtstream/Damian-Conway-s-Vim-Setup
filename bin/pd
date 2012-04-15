@@ -1,0 +1,35 @@
+#! /usr/bin/perl -w
+use strict;
+use 5.010;
+
+my $SINGLE_PAGE = `tput lines`;
+
+my @CANDIDATES  = (
+    'perldoc -f',
+    'perldoc',
+    'metapd',
+    'perldoc -q',
+    'man',
+);
+
+for my $command (@CANDIDATES) {
+    given (qx{ $command @ARGV 2>/dev/null }) {
+        when (/.*: nothing appropriate$/) { page( "Nothing found for '@ARGV'"); }
+        when (/\S/)                       { page( $_ );                         }
+    }
+}
+
+sub page {
+    my ($text) = @_;
+
+    my $pager;
+    if (($text =~ tr/\n//) > $SINGLE_PAGE ) {
+        open $pager, '|/usr/bin/less';
+    }
+    else {
+        $pager = \*STDOUT;
+    }
+
+    say {$pager} $text;
+    exit;
+}

@@ -1,0 +1,14 @@
+#! /usr/bin/env perl
+use strict;
+use warnings;
+use 5.010;
+
+if (!-t *STDOUT) {
+    print <ARGV>;
+}
+elsif (@ARGV) {
+  system qq{vim --cmd 'let no_plugin_maps = 1' -c 'runtime! macros/less.vim' "$ARGV[0]"};
+}
+else {
+  system q{vim --cmd 'let no_plugin_maps = 1' -c 'runtime! macros/less.vim' -};
+}
