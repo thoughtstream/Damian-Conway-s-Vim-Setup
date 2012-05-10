@@ -2,6 +2,5 @@
 
 rm -rf /tmp/pd
 
-curl --fail --silent --no-buffer --url "http://api.metacpan.org/pod/$1?content-type=text/x-pod" >! /tmp/pd ;
-
+curl --fail --silent -N --url "http://api.metacpan.org/pod/$1?content-type=text/x-pod" >! /tmp/pd ;
 perldoc /tmp/pd

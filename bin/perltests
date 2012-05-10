@@ -1,6 +1,9 @@
 #! /usr/bin/env polyperl
-use 5.015;
+use 5.014;
 use warnings;
+
+my %opt;
+@ARGV = grep { /^-v\S*$/ ? do{ $opt{verbosity} = 1; () } : $_ } @ARGV;
 
 {
     package TAP::Formatter::Console::NoTimeStamp;
@@ -26,6 +29,7 @@ my $harness = TAP::Harness->new({
     show_count      => 1,
     color           => 1,
     formatter_class => 'TAP::Formatter::Console::NoTimeStamp',
+    %opt,
 });
 
 $harness->runtests( fix_6tests(@ARGV) )  if  @ARGV;

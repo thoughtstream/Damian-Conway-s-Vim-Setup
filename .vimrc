@@ -303,10 +303,11 @@ vmap <expr> > KeepVisualSelection(">")
 vmap <expr> < KeepVisualSelection("<")
 
 function! KeepVisualSelection(cmd)
+    set nosmartindent
     if mode() ==# "V"
-        return a:cmd . "gv"
+        return a:cmd . ":set smartindent\<CR>gv"
     else
-        return a:cmd
+        return a:cmd . ":set smartindent\<CR>"
     endif
 endfunction
 
@@ -548,12 +549,16 @@ function! CallPerldoc ()
 endfunction
 
 "Complete perldoc requests with names of installed Perl modules
-command! -nargs=1 -complete=customlist,CompletePerlModuleNames Perldoc  call Perldoc_impl(<q-args>)
+command! -nargs=? -complete=customlist,CompletePerlModuleNames Perldoc  call Perldoc_impl(<q-args>)
 
 "Undo the special wildmoding and then execute the requested perdoc lookup...
 function! Perldoc_impl (args)
     set wildmode=list:longest,full
-    exec '!pd ' . a:args
+    if empty(a:args)
+        exec '!pd %'
+    else
+        exec '!pd ' . a:args
+    endif
 endfunction
 
 " Compile the list of installed Perl modules (and include the name under the cursor)...
