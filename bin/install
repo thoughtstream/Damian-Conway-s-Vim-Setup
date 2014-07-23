@@ -1,10 +1,13 @@
-#! /usr/bin/perl -ws
+#! /usr/bin/env perl -ws
 use 5.010;
 
 use File::Path;
 use File::Basename;
 use Cwd 'realpath';
-use IO::Prompter;
+BEGIN {
+    eval { require IO::Prompter; IO::Prompter->import() }
+        or *main::prompt = sub { print pop @_; return <> };
+}
 
 use Env qw(HOME PERL5LIB PERL6LIB);
 use vars qw ($f $v);
@@ -84,8 +87,9 @@ sub install {
       if (`diff $from $to`) {
          return
             if !$f
-            && !prompt -yn1r, -default=>'y',
-                       "A version of $from is already installed in $destdir.\nReplace it? [y]:";
+            && !prompt(-yn1r, -default=>'y',
+                       "A version of $from is already installed in $destdir.\nReplace it? [y]:"
+                      );
          say 'Replacing it.';
          system("/bin/rm -f $to");
       }

@@ -1,6 +1,6 @@
 "====[ Ensure autodoc'd plugins are supported ]===========
 
-runtime plugin/autodoc.vim
+runtime plugin/_autodoc.vim
 
 
 "====[ Work out what kind of file this is ]========
@@ -9,7 +9,7 @@ filetype plugin on
 
 " .t bilong perl!!!
 
-autocmd BufNewFile,BufRead  *.t   setfiletype perl
+autocmd BufNewFile,BufRead  *.t                     setfiletype perl
 
 
 "=====[ Comments are important ]==================
@@ -25,7 +25,7 @@ runtime plugin/documap.vim
 "====[ Edit and auto-update this config file and plugins ]==========
 
 augroup VimReload
-    autocmd!
+autocmd!
     autocmd BufWritePost $MYVIMRC source $MYVIMRC
 augroup END
 
@@ -53,6 +53,8 @@ function! s:conditional_nnoremap ( name )
         execute 'nnoremap  <unique> ' . a:name . ' ' . a:name
     endif
 endfunction
+call s:conditional_nnoremap( 'g,' )
+call s:conditional_nnoremap( 'g;' )
 call s:conditional_nnoremap( 'g~' )
 call s:conditional_nnoremap( 'g~~' )
 call s:conditional_nnoremap( 'g~g~' )
@@ -119,14 +121,16 @@ call s:conditional_nnoremap( 'gw' )
 "====[ Use persistent undo ]=================
 
 if has('persistent_undo')
+    " Save all undo files in a single location (less messy, more risky)...
     set undodir=$HOME/tmp/.VIM_UNDO_FILES
-    set undolevels=5000
-    set undofile
-endif
 
-"TODO: remap u to prompt when first undoing into a previous session's history
-" (probably by calling undotree when the buffer is loaded,
-"  remembering the current sequence number, and comparing it on each undo
+    " Save a lot of back-history...
+    set undolevels=5000
+
+    " Actually switch on persistent undo
+    set undofile
+
+endif
 
 
 "====[ Goto last location in non-empty files ]=======
@@ -139,7 +143,7 @@ autocmd BufReadPost *  if line("'\"") > 1 && line("'\"") <= line("$")
 "====[ I'm sick of typing :%s/.../.../g ]=======
 
 Nmap S  [Shortcut for :s///g]  :%s//g<LEFT><LEFT>
-vmap S                         :s//g<LEFT><LEFT>
+vmap S                         :B s//g<LEFT><LEFT>
 
 
 "====[ Toggle visibility of naughty characters ]============
@@ -164,40 +168,63 @@ augroup END
 set incsearch       "Lookahead as search pattern is specified
 set ignorecase      "Ignore case in all searches...
 set smartcase       "...unless uppercase letters used
+
 set hlsearch        "Highlight all matches
+highlight clear Search
+highlight       Search    ctermfg=White
 
 "Delete in normal mode to switch off highlighting till next search and clear messages...
-Nmap <silent> <BS> [Cancel highlighting]  :nohlsearch <BAR> call Toggle_CursorColumn('off')<CR>
+Nmap <silent> <BS> [Cancel highlighting]  :call HLNextOff() <BAR> :nohlsearch <BAR> :call VG_Show_CursorColumn('off')<CR>
 
-"Double-delete to remove search highlighting *and* trailing whitespace...
-Nmap <silent> <BS><BS>  [Cancel highlighting and remove trailing whitespace]
-\             mz:%s/\s\+$//g<CR>`z:nohlsearch<CR>
+"Double-delete to remove trailing whitespace...
+Nmap <silent> <BS><BS>  [Remove trailing whitespace] mz:call TrimTrailingWS()<CR>`z
+
+function! TrimTrailingWS ()
+    if search('\s\+$', 'cnw')
+        :%s/\s\+$//g
+    endif
+endfunction
 
 
-"====[ Handle encoding issues ]============
+"====[ Handle encoding issues on a Macos terminal]============
 
 set encoding=latin1
 
-Nmap <silent> U [Toggle UTF8]  :call ToggleUTF8()<CR>
+Nmap <silent> U  [Toggle UTF8]  :call ToggleUTF8()<CR><CR>:echo '[' . &fileencoding . ']'<CR>
+Nmap <silent> UU [Toggle Unicode terminal]  :call ToggleTerminal()<CR><CR>
 
 function! ToggleUTF8 ()
     if &fileencoding =~ 'utf-\?8'
         set fileencoding=latin1
+        !osascript -e 'tell application "Terminal" to set current settings of front window to settings set "stdterminal"'
     else
         set fileencoding=utf8
+        !osascript -e 'tell application "Terminal" to set current settings of front window to settings set "stdterminal_unicode"'
     endif
-    echo '[' . &fileencoding . ']'
+endfunction
+
+let g:UnicodeTerminal = 0
+function! ToggleTerminal ()
+    if !g:UnicodeTerminal
+        !osascript -e 'tell application "Terminal" to set current settings of front window to settings set "stdterminal"'
+        let g:UnicodeTerminal = 1
+        echo '[Unicode terminal]'
+    else
+        !osascript -e 'tell application "Terminal" to set current settings of front window to settings set "stdterminal_unicode"'
+        let g:UnicodeTerminal = 0
+        echo '[Latin1 terminal]'
+    endif
 endfunction
 
 
 
 "====[ Set background hint (if possible) ]=============
 
-if $VIMBACKGROUND != ""
-    exec 'set background=' . $VIMBACKGROUND
-else
-    set background=dark
-endif
+"if $VIMBACKGROUND != ""
+"    exec 'set background=' . $VIMBACKGROUND
+"else
+"    set background=dark
+"endif
 
 
 "======[ Magically build interim directories if necessary ]===================
@@ -229,23 +256,6 @@ augroup AutoMkdir
 augroup END
 
 
-"=====[ There can be only one (one Vim session per file) ]=====================
-
-augroup NoSimultaneousEdits
-    autocmd!
-    autocmd SwapExists *  let v:swapchoice = 'o'
-    autocmd SwapExists *  echohl ErrorMsg
-    autocmd SwapExists *  echo 'Duplicate edit session (readonly)'
-    autocmd SwapExists *  echohl None
-    autocmd SwapExists *  call Make_session_finder( expand('<afile>') )
-    autocmd SwapExists *  sleep 2
-augroup END
-
-function! Make_session_finder (filename)
-    exec 'nnoremap ss :!terminal_promote_vim_session ' . a:filename . '<CR>:q!<CR>'
-endfunction
-
-
 "=====[ Enable smartwrapping ]==================================
 
 " No smartwrapping in any of these files...
@@ -261,9 +271,13 @@ endfunction
 set formatoptions-=cro
 
 set wrapmargin=2                            "Wrap 2 characters from the edge of the window
+"set cinwords = ""                           "But not for C-like keywords
+
+"=======[ Fix smartindent stupidities ]============
+
 set autoindent                              "Retain indentation on next line
 set smartindent                             "Turn on autoindenting of blocks
-"set cinwords = ""                           "But not for C-like keywords
+
 inoremap # X<C-H>#|                         "And no magic outdent for comments
 nnoremap <silent> >> :call ShiftLine()<CR>| "And no shift magic on comments
 
@@ -278,6 +292,12 @@ endfunction
 "====[ I hate modelines ]===================
 
 set modelines=0
+
+
+"=====[ Quicker access to Ex commands ]==================
+
+nmap ; :
+vmap ; :B<SPACE>
 
 
 "=====[ Make Visual modes work better ]==================
@@ -298,35 +318,20 @@ vmap <BS> x
 " Make vaa select the entire file...
 vmap aa VGo1G
 
-" When shifting, retain selection over multiple shifts...
-vmap <expr> > KeepVisualSelection(">")
-vmap <expr> < KeepVisualSelection("<")
 
-function! KeepVisualSelection(cmd)
-    set nosmartindent
-    if mode() ==# "V"
-        return a:cmd . ":set smartindent\<CR>gv"
-    else
-        return a:cmd . ":set smartindent\<CR>"
-    endif
-endfunction
+"=====[ Make arrow keys move visual blocks around ]======================
 
-" Temporarily add a column indicator when inserting or appending in visual mode...
-" (Should use <C-O> instead, but it doesn't seem to work)
-vnoremap <silent>  I  I<C-R>=TemporaryColumnMarkerOn()<CR>
-vnoremap <silent>  A  A<C-R>=TemporaryColumnMarkerOn()<CR>
+runtime plugin/dragvisuals.vim
 
-function! TemporaryColumnMarkerOn ()
-    let g:prev_cursorcolumn_state = g:cursorcolumn_visible ? 'on' : 'off'
-    call Toggle_CursorColumn('on')
-    inoremap <silent>  <ESC>  <ESC>:call TemporaryColumnMarkerOff(g:prev_cursorcolumn_state)<CR>
-    return ""
-endfunction
+vmap  <expr>  <LEFT>   DVB_Drag('left')
+vmap  <expr>  <RIGHT>  DVB_Drag('right')
+vmap  <expr>  <DOWN>   DVB_Drag('down')
+vmap  <expr>  <UP>     DVB_Drag('up')
+vmap  <expr>  D        DVB_Duplicate()
+vmap  <expr>  <C-D>    DVB_Duplicate()
 
-function! TemporaryColumnMarkerOff (newstate)
-    call Toggle_CursorColumn(a:newstate)
-    iunmap <ESC>
-endfunction
+" Remove any introduced trailing whitespace after moving...
+let g:DVB_TrimWS = 1
 
 
 "=====[ Demo vim commands ]==============================
@@ -381,6 +386,28 @@ Nmap <silent> ;y [Toggle syntax highlighting]
                  \ endif<CR>
 
 
+
+"=====[ Always syntax highlight .patch and ToDo files ]=======================
+
+augroup PatchHighlight
+    autocmd!
+    autocmd BufEnter  *.patch,*.diff  let b:syntax_was_on = exists("syntax_on")
+    autocmd BufEnter  *.patch,*.diff  syntax enable
+    autocmd BufLeave  *.patch,*.diff  if !b:syntax_was_on
+    autocmd BufLeave  *.patch,*.diff      syntax off
+    autocmd BufLeave  *.patch,*.diff  endif
+augroup END
+
+augroup TODOHighlight
+    autocmd!
+    autocmd BufEnter  *.todo,todo,ToDo,TODO  let b:syntax_was_on = exists("syntax_on")
+    autocmd BufEnter  *.todo,todo,ToDo,TODO  syntax enable
+    autocmd BufLeave  *.todo,todo,ToDo,TODO  if !b:syntax_was_on
+    autocmd BufLeave  *.todo,todo,ToDo,TODO      syntax off
+    autocmd BufLeave  *.todo,todo,ToDo,TODO  endif
+augroup END
+
+
 "=====[ Configure % key (via matchit plugin) ]==============================
 
 " Match angle brackets...
@@ -412,14 +439,14 @@ set autowrite       "Save buffer automatically when changing files
 set autoread        "Always reload buffer when external changes detected
 
 "           +--Disable hlsearch while loading viminfo
-"           | +--Remember marks for last 50 files
-"           | |   +--Remember up to 10000 lines in each register
-"           | |   |      +--Remember up to 1MB in each register
-"           | |   |      |     +--Remember last 1000 search patterns
-"           | |   |      |     |     +---Remember last 1000 commands
-"           | |   |      |     |     |
-"           v v   v      v     v     v
-set viminfo=h,'50,<10000,s1000,/1000,:1000
+"           | +--Remember marks for last 500 files
+"           | |    +--Remember up to 10000 lines in each register
+"           | |    |      +--Remember up to 1MB in each register
+"           | |    |      |     +--Remember last 1000 search patterns
+"           | |    |      |     |     +---Remember last 1000 commands
+"           | |    |      |     |     |
+"           v v    v      v     v     v
+set viminfo=h,'500,<10000,s1000,/1000,:1000
 
 set backspace=indent,eol,start      "BS past autoindents, line boundaries,
                                     "     and even the start of insertion
@@ -432,11 +459,12 @@ set wildmode=list:longest,full      "Show list of completions
                                     "  and complete as much as possible,
                                     "  then iterate full completions
 
+set infercase                       "Adjust completions to match case
+
 set noshowmode                      "Suppress mode change messages
 
 set updatecount=10                  "Save buffer every 10 chars typed
 
-set textwidth=78                    "Wrap at column 78
 
 " Keycodes and maps timeout in 3/10 sec...
 set timeout timeoutlen=300 ttimeoutlen=300
@@ -449,22 +477,33 @@ set scrolloff=2                     "Scroll when 2 lines from top/bottom
 
 set ruler                           "Show cursor location info on status line
 
+
 "====[ Simplify textfile backups ]============================================
 
 " Back up the current file
 Nmap BB [Back up current file]  :!bak -q %<CR><CR>:echomsg "Backed up" expand('%')<CR>
 
+
 "=====[ Remap various keys to something more useful ]========================
 
 " Use space to jump down a page (like browsers do)...
-nnoremap <Space> <PageDown>
-
-" Edit a file...
-nmap e :n<SPACE>
+nnoremap   <Space> <PageDown>
+vnoremap   <Space> <PageDown>
 
 " Forward/back one file...
-nmap <DOWN> :next<CR>0
-nmap <UP>   :prev<CR>0
+nmap <silent><expr> <DOWN> File_advance('next')
+nmap <silent><expr> <UP>   File_advance('prev')
+
+function! File_advance (dir)
+    if a:dir == 'next' && argidx() < argc() - 1
+        return ":next\<CR>0"
+    elseif a:dir == 'prev' && argidx() > 0
+        return ":prev\<CR>0"
+    else
+        return ""
+        " Also consider: return "\<ESC>"
+    endif
+endfunction
 
 " Format file with autoformat (capitalize to specify options)...
 nmap          F !Gformat -T4 -
@@ -484,7 +523,7 @@ cmap *** **/*
 " (It's the only way to be sure)...
 nmap XX 1GdG
 
-" Replace the current buffer with a copy of the most recent...
+" Replace the current buffer with a copy of the most recent file...
 
 nmap RR XX:0r#<CR><C-G>
 
@@ -500,7 +539,7 @@ nmap $$ $<i}``
 " =====[ Perl programming support ]===========================
 
 " Execute Perl file...
-nmap W :!clear;echo;echo;polyperl %;echo;echo;echo<CR>
+nmap <silent> W  :!clear;echo;echo;(script -q ~/tmp/script_$$ polyperl %; if (-s ~/tmp/script_$$) then; echo; echo; echo; getraw; endif; rm -f ~/tmp/script_$$ )<CR><CR>
 
 " Execute Perl file (output to pager)...
 nmap E :!polyperl -m %<CR>
@@ -508,6 +547,8 @@ nmap E :!polyperl -m %<CR>
 " Execute Perl file (in debugger)...
 nmap Q :!polyperl -d %<CR>
 
+" Execute Perl file (in regex debugger)...
+nmap ;r :!rxrx %<CR>
 
 " Format file with perltidy...
 Nmap ;p [Perltidy the current buffer]  1G!Gperltidy<CR>
@@ -529,7 +570,6 @@ function! Perltidy_diff ()
     " Clean up the tidied version...
     call delete(tidy_file)
 endfunction
-
 
 " Run perldoc with smarter completion...
 Nmap <expr> ?? [Go to documentation] CallPerldoc()
@@ -578,17 +618,17 @@ endfunction
 
 
 " Handle Perl include files better...
-
-set include=^\\s*use\\s\\+\\zs\\k\\+\\ze
-set includeexpr=substitute(v:fname,'::','/','g')
-set suffixesadd=.pm
-execute 'set path+=' . substitute($PERL5LIB, ':', ',', 'g')
+"set include=^\\s*use\\s\\+\\zs\\k\\+\\ze
+"set includeexpr=substitute(v:fname,'::','/','g')
+"set suffixesadd=.pm
+"execute 'set path+=' . substitute($PERL5LIB, ':', ',', 'g')
 
 
 "Adjust keyword characters to match Perlish identifiers...
 set iskeyword+=$
 set iskeyword+=%
-set iskeyword+=@
+set iskeyword+=@-@
+set iskeyword+=:
 set iskeyword-=,
 
 
@@ -612,7 +652,17 @@ highlight WHITE_ON_RED    ctermfg=white  ctermbg=red
 call matchadd('WHITE_ON_RED', '_ref[ ]*[[{(]\|_ref[ ]*-[^>]')
 
 " Emphasize typical mistakes a Perl hacker makes in .vim files...
-let g:VimMistakes = '\_^\s*\zs\%(my\s\+\)\?\%(\k:\)\?\k\+\%(\[.\{-}\]\)\?\s*[+-.]\?==\@!\|\_^\s*elsif\|;\s*\_$\|\_^\s*#.*'
+let g:VimMistakes
+\   =     '\_^\s*\zs\%(my\s\+\)\?\%(\k:\)\?\k\+\%(\[.\{-}\]\)\?\s*[+-.]\?=[=>~]\@!'
+\   . '\|'
+\   .     '\_^\s*\zselsif'
+\   . '\|'
+\   .     ';\s*\_$'
+\   . '\|'
+\   .     '\_^\s*\zs#.*'
+\   . '\|'
+\   .     '\_^\s*\zs\k\+('
+
 let g:VimMistakesID = 668
 augroup VimMistakes
     autocmd!
@@ -766,10 +816,21 @@ call SmartcomAdd( '\*\*',  '\*\*',    NOTHING,                                  
 "call SmartcomAdd( '\k',    '\k\+\%(\k\|\n\)\@!',    "\<C-O>cw\<C-X>\<C-N>",           )
 "call SmartcomAdd( '\k',    '\k\+\_$',               "\<C-O>cw\<C-X>\<C-N>",           )
 
+"After an alignable, align...
+function! AlignOnPat (pat)
+    return "\<ESC>:call EQAS_Align('nmap',{'pattern':'" . a:pat . "'})\<CR>/" . a:pat . "/e\<CR>a\<SPACE>"
+endfunction
+                " Left         Right        Insert
+                " ==========   =====        =============================
+call SmartcomAdd( '=',         ANYTHING,    "\<ESC>:call EQAS_Align('nmap')\<CR>/=/\<CR>a\<SPACE>")
+call SmartcomAdd( '=>',        ANYTHING,    AlignOnPat('=>'))
+call SmartcomAdd( '\s#',       ANYTHING,    AlignOnPat('\%(\S\s*\)\@<= #'))
+call SmartcomAdd( ':',         ANYTHING,    AlignOnPat(':'),                   {'filetype':'vim'} )
+
                 " Left         Right   Insert                                  Where
                 " ==========   =====   =============================           ===================
 " Vim keywords...
-call SmartcomAdd( '^\s*func',  EOL,    "tion!\<CR>endfunction\<UP> ",          {'filetype':'vim'}  )
+call SmartcomAdd( '^\s*func',  EOL,    "tion!\<CR>endfunction\<UP> ",          {'filetype':'vim'} )
 call SmartcomAdd( '^\s*for',   EOL,    " ___ in ___\n___\n\<C-D>endfor\n___",  {'filetype':'vim'} )
 call SmartcomAdd( '^\s*if',    EOL,    " ___ \n___\n\<C-D>endif\n___",         {'filetype':'vim'} )
 call SmartcomAdd( '^\s*while', EOL,    " ___ \n___\n\<C-D>endwhile\n___",      {'filetype':'vim'} )
@@ -794,7 +855,7 @@ call SmartcomAddAction( '^\s*use\s\+\k\+', "",
 iab hbc #! /bin/csh
 iab hbs #! /bin/sh
 iab hbp #! /usr/bin/env polyperl<CR>use 5.014; use warnings; use autodie;<CR>
-iab hbr #! /Users/damian/bin/rakudo*<CR>use v6;
+iab hb6 #! /usr/bin/env perl6<CR>use v6;
 
 
 " Execute current file polymorphically...
@@ -804,6 +865,10 @@ Nmap ,,, [Debug current file]  :w<CR>:!clear;echo;echo;run -d %<CR>
 
 "=====[ Show help files in a new tab, plus add a shortcut for helpg ]==============
 
+let g:help_in_tabs = 1
+
+nmap <silent> H  :let g:help_in_tabs = !g:help_in_tabs<CR>
+
 "Only apply to .txt files...
 augroup HelpInTabs
     autocmd!
@@ -812,7 +877,7 @@ augroup END
 
 "Only apply to help files...
 function! HelpInNewTab ()
-    if &buftype == 'help'
+    if &buftype == 'help' && g:help_in_tabs
         "Convert the help window to a tab...
         execute "normal \<C-W>T"
     endif
@@ -993,68 +1058,20 @@ function! AddVimPointKeywords ()
 endfunction
 
 
-"=====[ Grammar checking ]========================================
+" "=====[ Grammar checking ]========================================
 
-" List of problematic words...
-let s:problem_words = [
-\       "it's",  "its",
-\       "were",  "we're",   "where",
-\       "their", "they're", "there",
-\       "your",  "you're",
-\ ]
-
-" OR them together to make a matchable pattern...
-let s:problem_words_pat     = join(s:problem_words, '\|')
-let s:problem_words_pat_str = substitute(s:problem_words_pat, "'", "''", 'g')
-
-" Create a pattern that matches repeated words...
-
-let s:repeat_matcher = '\(\S\+\)\@>\_s\+\1'
-
-" Create a command that will match that pattern...
-let s:words_matcher
-\   = 'let w:check_grammar = matchadd(''BOLD'', ''\c\<\%(' . s:problem_words_pat_str . '\|' . s:repeat_matcher . '\)\>'')'
-
-" Create a command that will find those words...
-let s:words_finder
-\   = '/\c\<\%(' . s:problem_words_pat . '\|' . s:repeat_matcher . '\)\>'
-
-" Enbolden problematic words...
-highlight BOLD  term=bold cterm=bold gui=bold
-
-function! CheckGrammar ()
-    " If we're turning the feature off...
-    if exists('w:check_grammar')
-        " Stop matching and highlighting the words...
-        call matchdelete(w:check_grammar)
-
-        " Clear the flag
-        unlet w:check_grammar
-
-        " Clear any search highlighting...
-        return "nohlsearch"
-
-    " If we're turning the feature on...
-    else
-        " Start matching and highlighting the words...
-        exec s:words_matcher
-
-        " Return a search command, to be executed by the mapping...
-        return ""
-        "s:words_finder
-    endif
-endfunction
-
-" Toggle grammar checking...
-Nmap <silent> ;g [Toggle grammar checking] :exec CheckGrammar()<CR>
+highlight GRAMMARIAN_ERRORS_MSG   ctermfg=red   cterm=bold
+highlight GRAMMARIAN_CAUTIONS_MSG ctermfg=white cterm=bold
 
 
 "=====[ Add or subtract comments ]===============================
 
 " Work out what the comment character is, by filetype...
-autocmd BufNewFile,BufRead   *                                 let b:cmt = exists('b:cmt') ? b:cmt : ''
 autocmd FileType             *sh,awk,python,perl,perl6,ruby    let b:cmt = exists('b:cmt') ? b:cmt : '#'
 autocmd FileType             vim                               let b:cmt = exists('b:cmt') ? b:cmt : '"'
+autocmd BufNewFile,BufRead   *.vim,.vimrc                      let b:cmt = exists('b:cmt') ? b:cmt : '"'
+autocmd BufNewFile,BufRead   *                                 let b:cmt = exists('b:cmt') ? b:cmt : '#'
+autocmd BufNewFile,BufRead   *.p[lm],.t                        let b:cmt = exists('b:cmt') ? b:cmt : '#'
 
 " Work out whether the line has a comment then reverse that condition...
 function! ToggleComment ()
@@ -1108,41 +1125,37 @@ nmap <silent> # :call ToggleComment()<CR>j0
 vmap <silent> # :call ToggleBlock()<CR>
 
 
-"=====[ Highlight cursor (plus row and column on request) ]===================
+"=====[ Highlight cursor ]===================
 
 " Inverse highlighting for cursor...
 highlight CursorInverse   term=inverse ctermfg=black ctermbg=white
+
+" Set up highlighter at high priority (i.e. 100)
 call matchadd('CursorInverse', '\%#', 100)
 
 " Need an invisible cursor column to make it update on every cursor move...
-highlight clear CursorColumn
-highlight CursorColumn term=none cterm=none
-set cursorcolumn
+" (via the visualguide.vim plugin, so as to play nice)
+runtime plugin/visualguide.vim
+call VG_Show_CursorColumn('off')
+
+
+"=====[ Highlight row and column on request ]===================
 
 " Toggle cursor row highlighting on request...
-highlight CursorLine   term=bold ctermfg=black ctermbg=cyan  cterm=bold
-Nmap <silent> ;r [Toggle cursor line highlighting] :set cursorline!<CR>
+" highlight CursorLine   term=bold ctermfg=black ctermbg=cyan  cterm=bold
+highlight CursorLine   term=bold cterm=inverse
+Nmap <silent> ;R [Toggle cursor line highlighting] :set cursorline!<CR>
 
 " Toggle cursor column highlighting on request...
-Nmap <silent> ;c [Toggle cursor row highlighting] :silent call Toggle_CursorColumn('flip')<CR>
+" (via visualguide.vim plugin, so as to play nice)
+Nmap <silent> ;c [Toggle cursor row highlighting] :silent call VG_Show_CursorColumn('flip')<CR>
 
-" Implement cursor toggle...
-let g:cursorcolumn_visible = 0
-function! Toggle_CursorColumn (requested_state)
-    if a:requested_state == 'off' || g:cursorcolumn_visible && a:requested_state == 'flip'
-        let g:cursorcolumn_visible = 0
-        highlight clear CursorColumn
-        highlight CursorColumn term=none cterm=none
-    else
-        let g:cursorcolumn_visible = 1
-        highlight CursorColumn term=bold ctermfg=black ctermbg=cyan cterm=bold
-    endif
-endfunction
 
 "=====[ Highlight spelling errors on request ]===================
 
 set spelllang=en_au
-Nmap <silent> ;s [Toggle spell-checking] :setlocal invspell<CR>
+Nmap <silent> ;s  [Toggle spell-checking]               :set invspell spelllang=en<CR>
+Nmap <silent> ;ss [Toggle Basic English spell-checking] :set    spell spelllang=en-basic<CR>
 
 
 "======[ Create a toggle for the XML completion plugin ]=======
@@ -1185,8 +1198,8 @@ function! Uniq (...) range
 endfunction
 
 " Only in visual mode...
-vmap  u :call Uniq()<CR>
-vmap  U :call Uniq('ignore whitespace')<CR>
+vmap  q :call Uniq()<CR>
+vmap  Q :call Uniq('ignore whitespace')<CR>
 
 
 "====[ Make normalized search use NFKC ]=======
@@ -1196,37 +1209,13 @@ NormalizedSearchUsing ~/bin/NFKC
 
 
 
-"====[ Toggle between lists and bulleted lists ]======================
-
-Nmap <silent> ;l [Toggle list format (bullets <-> commas)]  vip!list2bullets<CR>
-vmap <silent> ;l !list2bullets<CR>
-
-
-"====[ Make Gundo visualizer more usable ]============================
-
-" Shut visualizer when a state is selected...
-let g:gundo_close_on_revert = 1
-
-" Use arrow keys to navigate...
-let g:gundo_map_move_older  =  "\<DOWN>"
-let g:gundo_map_move_newer  =  "\<UP>"
-
-" No help required...
-let g:gundo_help = 0
-
-" Change the layout...
-let g:gundo_right = 1
-
-" Access via a simple mapping...
-Nmap ;u [Show the undo tree]  :GundoToggle<CR>
-
-
 "====[ Regenerate help tags when directly editing a help file ]=================
 
 augroup HelpTags
     au!
     autocmd BufWritePost ~/.vim/doc/*   :helptags ~/.vim/doc
 augroup END
+
 
 "====[ Formatting for .lei files ]=======================================
 
@@ -1282,20 +1271,136 @@ function! LEI_format () range
 endfunction
 
 
-"=====[ Perl folding ]=====================
+"=====[ Search folding ]=====================
 
-nmap <silent> zp /^\s*sub\s\+\w\+<CR>
-                \:nohlsearch<CR>
-                \``
-                \zz
-                \:call SetZPHighlight()<CR>
+" Highlight folds
+highlight Folded  ctermfg=cyan ctermbg=black
 
-function! SetZPHighlight ()
-    if exists('b:ZPHighlightID')
-        call matchdelete(b:ZPHighlightID)
-        unlet b:ZPHighlightID
+" Toggle on and off...
+nmap <silent> <expr>  zz  FS_ToggleFoldAroundSearch({'context':1})
+
+" Show only sub defns (and maybe comments)...
+let perl_sub_pat = '^\s*\%(sub\|func\|method\|package\)\s\+\k\+'
+let vim_sub_pat  = '^\s*fu\%[nction!]\s\+\k\+'
+augroup FoldSub
+    autocmd!
+    autocmd BufEnter * nmap <silent> <expr>  zp  FS_FoldAroundTarget(perl_sub_pat,{'context':1})
+    autocmd BufEnter * nmap <silent> <expr>  za  FS_FoldAroundTarget(perl_sub_pat.'\\|^\s*#.*',{'context':0, 'folds':'invisible'})
+    autocmd BufEnter *.vim,.vimrc nmap <silent> <expr>  zp  FS_FoldAroundTarget(vim_sub_pat,{'context':1})
+    autocmd BufEnter *.vim,.vimrc nmap <silent> <expr>  za  FS_FoldAroundTarget(vim_sub_pat.'\\|^\s*".*',{'context':0, 'folds':'invisible'})
+    autocmd BufEnter * nmap <silent> <expr>                  zv  FS_FoldAroundTarget(vim_sub_pat.'\\|^\s*".*',{'context':0, 'folds':'invisible'})
+augroup END
+
+" Show only C #includes...
+nmap <silent> <expr>  zu  FS_FoldAroundTarget('^\s*use\s\+\S.*;',{'context':1})
+
+
+"====[ Do a command, then restore the cursor ]======
+
+command! -nargs=+ -complete=command Static  call Static_impl(<q-args>)
+
+function! Static_impl (cmd)
+    exec a:cmd
+    normal ``
+endfunction
+
+
+"====[ Show when lines extend past column 80 "]================================>-<=====================
+
+highlight ColorColumn ctermbg=magenta
+
+function! MarkMargin (on)
+    if exists('b:MarkMargin')
+        call matchdelete(b:MarkMargin)
+        unlet b:MarkMargin
     endif
-    if &foldlevel == 0
-        let b:ZPHighlightID = matchadd('WHITE_ON_BLACK','^\s*sub\s\+\w\+')
+    if a:on
+        let b:MarkMargin = matchadd('ColorColumn', '\%81v', 100)
     endif
+endfunction
+
+augroup MarkMargin
+    autocmd!
+    autocmd  BufEnter  *       :call MarkMargin(1)
+    autocmd  BufEnter  *.vp*   :call MarkMargin(0)
+augroup END
+
+
+"====[ Accelerated up and down on wrapped lines ]============
+
+"nnoremap  j  gj
+"nnoremap  k  gk
+nmap j <Plug>(accelerated_jk_gj)
+nmap k <Plug>(accelerated_jk_gk)
+
+
+"====[ Pathogen support ]======================
+
+call pathogen#infect()
+
+
+"====[ Mapping to analyse a list of numbers ]====================
+
+" Need to load this early, so we can override its nmapped ++
+runtime plugin/eqalignsimple.vim
+
+vmap <expr>  ++  VMATH_YankAndAnalyse()
+nmap         ++  vip++
+
+
+"====[ Make digraphs easier to get right (various versions) ]=================
+
+inoremap <expr>  <C-J>       HUDG_GetDigraph()
+inoremap <expr>  <C-K>       BDG_GetDigraph()
+inoremap <expr>  <C-L>       HUDigraphs()
+
+function! HUDigraphs ()
+    digraphs
+    call getchar()
+    return "\<C-K>"
+endfunction
+
+
+"====[ Extend a previous match ]=====================================
+
+nnoremap //   /<C-R>/
+nnoremap ///  /<C-R>/\<BAR>
+
+
+
+"====[ Toggle between lists and bulleted lists ]======================
+
+Nmap <silent> ;l [Toggle list format (bullets <-> commas)]  :call ListTrans_toggle_format()<CR>f
+vmap <silent> ;l                                            :call ListTrans_toggle_format('visual')<CR>f
+
+
+"=====[ Select a table column in visual mode ]========================
+
+vnoremap <silent><expr> c  VTC_select()
+
+
+"=====[ Make * respect smartcase and also set @/ (to enable 'n' and 'N') ]======
+
+nmap *  :let @/ = '\<'.expand('<cword>').'\>' ==? @/ ? @/ : '\<'.expand('<cword>').'\>'<CR>n
+
+
+"=====[ Much smarter "edit next file" command ]=======================
+
+nmap <silent><expr>  e  g:GTF_goto_file()
+
+
+
+"=====[ Smarter interstitial completions of identifiers ]=============
+"
+" When autocompleting within an identifier, prevent duplications...
+
+augroup Undouble_Completions
+    autocmd!
+    autocmd CompleteDone *  call Undouble_Completions()
+augroup None
+
+function! Undouble_Completions ()
+    let col  = getpos('.')[2]
+    let line = getline('.')
+    call setline('.', substitute(line, '\(\k\+\)\%'.col.'c\zs\1', '', ''))
 endfunction

@@ -67,16 +67,44 @@ let s:PREVTEXTLINE = '\S.*\n\_.*\%#'
 
 function! <SID>CompletePadding ()
     " Grab the necessary context...
-    let col = col('.')-1                " ...strings are zero-based
-    let prev_line_num = search(s:PREVTEXTLINE,'bnW')
-    let prev_line = getline(prev_line_num ? prev_line_num : line('.')-1)
+    let col = col('.')
+    let curr_line = getline('.')
+
+    " Is there a leader on the current line???
+    let leader = matchstr(curr_line, '\([^[:alnum:]]\)\1\+\%' . col . 'c')
+
+    " If so, find the preceding line with the same padding...
+    if strlen(leader)
+        " Start at the preceding line...
+        let cursorpos = getpos('.')
+        let cursorpos[1] -= 1
+        call setpos('.',cursorpos)
+
+        " Find the leader at or after the current column...
+        let startcol = cursorpos[2] - strlen(leader)
+        let prev_line_num = search('\%>' . startcol . 'c\V'.escape(leader,'\'), 'bnW')
+
+        " Restore cursor position...
+        let cursorpos[1] += 1
+        call setpos('.',cursorpos)
+
+        " If no pattern for the leader, add a tabspace worth of leader char...
+        if !prev_line_num
+            return repeat(leader[0], &tabstop - cursorpos[2] % &tabstop)
+        endif
+
+    " Otherwise, find a previous line with suitable nonspace padding...
+    else " => no leader
+        let prev_line_num = search(s:PREVTEXTLINE,'bnW')
+    endif
 
     " Work out what the previous line's padding is....
-    let padding = matchlist(prev_line, s:PREVPADDING, col)
+    let prev_line = getline(prev_line_num ? prev_line_num : line('.')-1)
+    let padding = matchlist(prev_line, s:PREVPADDING, col-1)
 
     " If no padding, then use spaces...
     if empty(padding)
-        let padding = matchlist(prev_line, s:PREVSPACING, col)
+        let padding = matchlist(prev_line, s:PREVSPACING, col-1)
     endif
 
     "If still no padding, give up...
@@ -133,7 +161,7 @@ let s:RESTORE = {'restore':1}
 "                  Left   Right   Complete with...         Autorestore
 "                  ====   =====   ====================     ==========
 call SmartcomAdd(  '{',   s:NIL,  "}"                    , s:RESTORE   )
-call SmartcomAdd(  '{',   '}',    "\<CR>\<C-D>\<UP>\<RIGHT>\<CR>"      )
+call SmartcomAdd(  '{',   '}',    "\<CR>\<C-D>\<ESC>O"                 )
 call SmartcomAdd(  '\[',  s:NIL,  "]"                    , s:RESTORE   )
 call SmartcomAdd(  '\[',  '\]',    "\<CR>\<ESC>O\<TAB>"                )
 call SmartcomAdd(  '(',   s:NIL,  ")"                    , s:RESTORE   )
@@ -204,7 +232,7 @@ function! <SID>Complete ()
         let pattern = left . curr_pos . right
         if curr_line =~ pattern
             " Code around bug in setpos() when used at EOL...
-            if col == strlen(curr_line)+1 && strlen(completion)==1 
+            if col == strlen(curr_line)+1 && strlen(completion)==1
                 let reversion = "\<LEFT>"
             endif
 
@@ -254,3 +282,55 @@ endfunction
 
 " Restore previous external compatibility options
 let &cpo = s:save_cpo
+
+finish
+
+
+Documentation
+
+    smartcom - User defined text completion via patterns
+
+Description
+
+    The smartcom plugin
+
+Interface
+
+    The plugin remaps the following commands in Normal mode:
+
+        <TAB>          - trigger smart completion on left and right context
+        <S-TAB>        - trigger smart completion on nearby padding
+        <S-TAB><S-TAB> - trigger smart completion on filenames
+
+API
+
+    The plugin provides the following functions that may be called
+    to extend the smart completion behaviour:
+
+Predefined completions
+
+    The smartcom plugin comes with a number of predefined completions.
+
+        Left of        Right of         Text
+        cursor          cursor        inserted
+        _______        ________       ________________________
+        opening
+        bracket        nothing        matching closing bracket
+
+        opening        closing
+        bracket        bracket        newline and indent
+
+        double
+        quote          nothing        matching quote character
+
+        double         double
+        quote          quote          literal \n sequence
+
+    The effect of this is that a single <TAB> after a bracket inserts the
+    appropriate closing bracket and then a second <TAB> pushes that closing
+    bracket to the following line and indents (suitable for a code block).
+
+    Likewise a <TAB> after a double quote inserts the matching quote,
+    and a second <TAB> inserts a '\n' (ensuring the string terminates
+    with a newline)
+

@@ -1,4 +1,4 @@
-#! /usr/local/bin/perl -w
+#! /usr/bin/env perl -w
 
 open my($fh), '/usr/bin/pbpaste|' or die $!;
 while (<$fh>) {

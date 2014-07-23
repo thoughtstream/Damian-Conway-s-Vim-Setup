@@ -1,9 +1,12 @@
-#! /usr/bin/env polyperl
-use 5.014;
+#! /usr/bin/env perl
+use 5.010;
 use warnings;
 
 my %opt;
-@ARGV = grep { /^-v\S*$/ ? do{ $opt{verbosity} = 1; () } : $_ } @ARGV;
+@ARGV =
+    grep { /^-s\S*$/ ? do{ $opt{verbosity} = -2; () } : $_ }
+    grep { /^-v\S*$/ ? do{ $opt{verbosity} =  1; () } : $_ }
+         @ARGV;
 
 {
     package TAP::Formatter::Console::NoTimeStamp;
@@ -19,9 +22,9 @@ my %opt;
 }
 
 # Locate Perl 5 tests, unless explicitly specified...
-@ARGV = glob("*.t")   unless @ARGV;
-@ARGV = glob("t/*.t") unless @ARGV;
-@ARGV = "test.pl"     unless @ARGV || !-r "test.pl";
+@ARGV = glob("*.t")            unless @ARGV;
+@ARGV = glob("t/*.t devt/*.t") unless @ARGV;
+@ARGV = "test.pl"              unless @ARGV || !-r "test.pl";
 
 use TAP::Harness;
 my $harness = TAP::Harness->new({
@@ -32,6 +35,8 @@ my $harness = TAP::Harness->new({
     %opt,
 });
 
+require Test::More;
+Test::More::diag('Testing under Perl ' . sprintf "%d.%d.%d\n", $]=~/(\d+)[.](\d\d\d)(\d*)/);
 $harness->runtests( fix_6tests(@ARGV) )  if  @ARGV;
 say "Couldn't find any tests to run"     if !@ARGV;
 
@@ -55,3 +60,4 @@ sub fix_6tests {
     return @tests;
 }
 
+Test::More::diag('Tested under Perl ' . sprintf "%d.%d.%d\n", $]=~/(\d+)[.](\d\d\d)(\d*)/);

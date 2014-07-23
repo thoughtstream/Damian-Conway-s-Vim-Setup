@@ -23,14 +23,36 @@ set cpo&vim
 "        $mid_var //= 1
 "        $var = 1
 
-let s:LINE_WITH_EQ
-\    = '^\(.\{-}\)\s*\(\%([-+*/~]\|||\?\|&&\?\|//\?\)\?=\@<!=[=~]\@!\)\(.*\)$'
+" Or:
 
-function s:Align (mode, ...) range
+"        cat => 'feline',
+"        lion = leo => 'leonine',
+"        cow => 'bovine',
+"        elephant => 'elephantine',
+
+let s:QUOTELIKE
+\   = '''\%(\\.\|[^''\\]\)*''\|'
+\   . '"\%(\\.\|[^"\\]\)*"'
+
+let s:LINE_WITH_EQ
+\    = '^\(\%('.s:QUOTELIKE.'\|[^''"]\)\{-}\)\s*'
+\    . '\(\%([~.*/%+-]\|||\?\|&&\?\|//\?\)\?=\@<!=[=~]\@!\)'
+\    . '\(.*\)$'
+
+let s:LINE_WITH_EQ_VIM
+\    = '^\(\%(\s*"\)\?\%('.s:QUOTELIKE.'\|[^''"]\)\{-}\)\s*'
+\    . '\(\%([~.*/%+-]\|||\?\|&&\?\|//\?\)\?=\@<!=[=~]\@!\)'
+\    . '\(.*\)$'
+
+function EQAS_Align (mode, ...) range
+    let option = a:0 ? a:1 : {}
 
     "What symbol to align (defaults to '=' variants)...
-    let search_pat = s:LINE_WITH_EQ
-    if a:0
+    let search_pat = expand('%') =~ '\.vim$' ? s:LINE_WITH_EQ_VIM : s:LINE_WITH_EQ
+    if strlen(get(option,'pattern',""))
+        let search_pat = '^\(.\{-}\)\s*\(' . get(option,'pattern') . '\)\(.*\)$'
+
+    elseif get(option,'cursor')
         " If requested, work out what symbol is under cursor and align to that...
         let [bufnum, line_num, start_pos, offset] = getpos('.')
         let start_pos -= 1
@@ -59,6 +81,12 @@ function s:Align (mode, ...) range
     if a:mode == 'vmap'
         let firstline = a:firstline
         let lastline  = a:lastline
+    elseif get(option, 'paragraph')
+        let firstline  = search('^\s*$','bnW') + 1
+        let lastline   = search('^\s*$', 'nW') - 1
+        if lastline < 0
+            let lastline = line('$')
+        endif
     else
         let indent_pat = '^' . matchstr(getline('.'), '^\s*') . '\S'
         let firstline  = search('^\%('. indent_pat . '\)\@!\|^\s*$','bnW') + 1
@@ -97,10 +125,12 @@ function s:Align (mode, ...) range
 endfunction
 
 
-nmap <silent> =     :call <SID>Align('nmap')<CR>
-nmap <silent> +     :call <SID>Align('nmap', 'under cursor')<CR>
-vmap <silent> =     :call <SID>Align('vmap')<CR>
-vmap <silent> +     :call <SID>Align('vmap', 'under cursor')<CR>
+nmap <silent> =     :call EQAS_Align('nmap')<CR>
+nmap <silent> ==    :call EQAS_Align('nmap', {'paragraph':1} )<CR>
+nmap <silent> +     :call EQAS_Align('nmap', {'cursor':1} )<CR>
+nmap <silent> ++    :call EQAS_Align('nmap', {'cursor':1, 'paragraph':1} )<CR>
+vmap <silent> =     :call EQAS_Align('vmap')<CR>
+vmap <silent> +     :call EQAS_Align('vmap', {'cursor':1} )<CR>
 
 " Restore previous external compatibility options
 let &cpo = s:save_cpo

@@ -1,6 +1,8 @@
-#! /usr/bin/perl -w
+#! /usr/bin/env perl -w
 use strict;
 use 5.010;
+
+use experimental 'smartmatch';
 
 my $SINGLE_PAGE = `tput lines`;
 

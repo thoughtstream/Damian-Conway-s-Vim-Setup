@@ -1,4 +1,4 @@
-#! /usr/bin/perl -w
+#! /usr/bin/env perl -w
 use strict;
 use 5.010;
 use Text::Autoformat;
@@ -64,12 +64,12 @@ $text =~ m{\A (\s*) ([^A-Za-z\s]*\s*) }xms;
 my $indent = $1 // q{};
 my $bullet = $2 // q{};
 
-# Is there bullet already?
+# Is there bullet already???
 if (length($bullet) == 0) {
     $bullet = '- ';
 }
 else {
-    # Are all lines bulleted?
+    # Are all lines bulleted???
     my $bullet_gap   = q{ } x length $bullet;
     my $bullet_count = grep {length} $text =~ m{^$indent\Q$bullet\E}gms;
     my $gap_count    = grep {length} $text =~ m{^$indent$bullet_gap}gms;
@@ -96,7 +96,7 @@ else {
 $text =~ s{\A \s* (?:\Q$bullet\E)?}{}xms;
 $text =~ s{\n}{ }gxms;
 
-# What's the item separator?
+# What's the item separator???
 my $sep = $text =~ m{;} ? ';' : ',';
 
 # Separate the items...
@@ -108,12 +108,5 @@ $lines[-1] =~ s{\A \s* $DEF_BULLET_CONJ \s*}{}xms;
 # Rebullet them...
 s{^}{$indent$bullet}gxms for @lines;
 
-# Reformat and voila!
+# Reformat and voila!!!
 print autoformat(join("\n", @lines), {all=>1});
-
-__DATA__
-
-my $y = (1,2,(3,4,),5,6);
-
-my $x = (1,2,3,4);
-
