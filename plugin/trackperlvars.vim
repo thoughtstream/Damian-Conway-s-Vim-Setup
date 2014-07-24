@@ -19,16 +19,35 @@ set cpo&vim
 " Track vars after each cursor movement...
 augroup TrackVar
     autocmd!
-    au CursorMoved  *.pl,*.pm,*.t  call <sid>track_perl_var()
-    au CursorMovedI *.pl,*.pm,*.t  call <sid>track_perl_var()
+    au CursorMoved  *.pl,*.pm,*.t  call TPV_track_perl_var()
+    au CursorMovedI *.pl,*.pm,*.t  call TPV_track_perl_var()
 
-    au BufEnter     *.pl,*.pm,*.t  let b:old_star_map = maparg('*')
-    au BufEnter     *.pl,*.pm,*.t  nmap <buffer>         cv  :call <sid>rename_perl_var('normal')<CR>
-    au BufEnter     *.pl,*.pm,*.t  vmap <buffer>         cv  :call <sid>rename_perl_var('visual')<CR>gv
-    au BufEnter     *.pl,*.pm,*.t  nmap <buffer><silent> gd  :let @/ = <sid>locate_perl_var_decl()<CR>
-    au BufEnter     *.pl,*.pm,*.t  nmap <buffer><silent> *   :let @/ = <sid>locate_perl_var()<CR>
-    au BufEnter     *.pl,*.pm,*.t  nmap <buffer><silent> tt  :let g:track_perl_var_locked = ! g:track_perl_var_locked<CR>:call <sid>track_perl_var()<CR>
+    au BufEnter     *.pl,*.pm,*.t  call TPV__setup()
 augroup END
+
+function! TPV__setup ()
+    " Remember how * was set up (if it was) and change it...
+    let b:old_star_map = maparg('*')
+    nmap <special> <buffer><silent> *   :let @/ = TPV_locate_perl_var()<CR>
+
+    " cv --> change variable...
+    nmap <special> <buffer>         cv  :call TPV_rename_perl_var('normal')<CR>
+    vmap <special> <buffer>         cv  :call TPV_rename_perl_var('visual')<CR>gv
+
+    " gd --> goto definition...
+    nmap <special> <buffer><silent> gd  :let @/ = TPV_locate_perl_var_decl()<CR>
+
+    " tt --> toggle tracking...
+    nmap <special> <buffer><silent> tt  :let g:track_perl_var_locked = ! g:track_perl_var_locked<CR>:call TPV_track_perl_var()<CR>
+
+    " Adjust keywords to cover sigils and qualifiers...
+    set iskeyword+=$
+    set iskeyword+=%
+    set iskeyword+=@-@
+    set iskeyword+=:
+    set iskeyword-=,
+
+endfunction
 
 
 
@@ -162,7 +181,7 @@ let s:MATCH_VAR_PAT = join([
 \ ], '')
 
 " This gets called every time the cursor moves (so keep it tight!)...
-function! s:track_perl_var ()
+function! TPV_track_perl_var ()
     " Is tracking locked???
     highlight TRACK_PERL_VAR_ACTIVE   cterm=NONE
     if g:track_perl_var_locked
@@ -266,7 +285,7 @@ endfunction
 
 " Implement "locate next use of a variable" (i.e. * command)
 
-function! s:locate_perl_var ()
+function! TPV_locate_perl_var ()
     " Locate a var under cursor...
     let cursline = getline('.')
     let curscol  = col('.')
@@ -317,7 +336,7 @@ endfunction
 
 " Implement "locate preceding declaration of a variable" (i.e. @ command)
 
-function! s:locate_perl_var_decl ()
+function! TPV_locate_perl_var_decl ()
     " Locate a var under cursor...
     let cursline = getline('.')
     let curscol  = col('.')
@@ -375,7 +394,7 @@ endfunction
 
 " Implement "rename all forms of a variable" (i.e. cv command)
 
-function! s:rename_perl_var (mode) range
+function! TPV_rename_perl_var (mode) range
     " Grab the currently highlighted variable (if any)...
      let sigil   = s:prev_sigil
      let varname = s:prev_varname
