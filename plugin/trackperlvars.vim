@@ -1,4 +1,5 @@
 " Vim global plugin for tracking Perl vars in source
+                   \ .  '[@]\_s*\zs'.varname.'\ze\|{\zs'.varname.'\ze}\%(\_s*[{]\)\@!'
 " Last change:  Sun May 18 11:40:10 EST 2014
 " Maintainer:	Damian Conway
 " License:	This file is placed in the public domain.
@@ -214,30 +215,30 @@ function! TPV_track_perl_var ()
 
     " Otherwise, extract components of variable...
     let sigil   = get(varparts,1)
-    let varname = escape(substitute( get(varparts,2), '^[{]\([^^].*\)[}]$', '\1', 'g'),'\\')
+    let varname = escape(substitute( get(varparts,2), '^{\([^^].*\)}$', '\1', 'g'),'\\')
     let bracket = get(varparts,3,'')
 
     " Handle arrays: @array, $array[...], $#array...
     if sigil == '@' && bracket != '{' || sigil == '$#' || sigil =~ '[$%]' && bracket == '['
         let sigil = '@'
         let curs_var = '\C\%('
-                \ . '[$%]\_s*\%('.varname.'\|[{]'.varname.'[}]\)\%(\_s*[[]\)\@=\|'
-                \ . '[$]#\_s*\%('.varname.'\|[{]'.varname.'[}]\)\|'
-                \ .  '[@]\_s*\%('.varname.'\|[{]'.varname.'[}]\)\%(\_s*[{]\)\@!'
+                \ . '[$%]\_s*\%('.varname.'\>\|{'.varname.'}\)\%(\_s*[[]\)\@=\|'
+                \ . '[$]#\_s*\%('.varname.'\>\|{'.varname.'}\)\|'
+                \ .  '[@]\_s*\%('.varname.'\>\|{'.varname.'}\)\%(\_s*[{]\)\@!'
                 \ . '\)'
 
     " Handle hashes: %hash, $hash{...}, @hash{...}...
     elseif sigil == '%' && bracket != '[' || sigil =~ '[$@]' && bracket == '{'
         let sigil = '%'
         let curs_var = '\C\%('
-                \ . '[$@]\_s*\%('.varname.'\|[{]'.varname.'[}]\)\%(\_s*[{]\)\@=\|'
-                \ .  '[%]\_s*\%('.varname.'\|[{]'.varname.'[}]\)\%(\_s*[[]\)\@!'
+                \ . '[$@]\_s*\%('.varname.'\>\|{'.varname.'}\)\%(\_s*[{]\)\@=\|'
+                \ .  '[%]\_s*\%('.varname.'\>\|{'.varname.'}\)\%(\_s*[[]\)\@!'
                 \ . '\)'
 
     " Handle scalars: $scalar
     else
         let sigil = '$'
-        let curs_var = '\C[$]\_s*\%('.varname.'\|[{]'.varname.'[}]\)\%(\_s*[[{]\)\@!'
+        let curs_var = '\C[$]\_s*\%('.varname.'\>\|{'.varname.'}\)\%(\_s*[[{]\)\@!'
     endif
 
     " Special highlighting and descriptions for builtins...
@@ -261,7 +262,7 @@ function! TPV_track_perl_var ()
         let s:displaying_message = 1
 
     " Special highlighting for singleton variables...
-    elseif varname !~ ':' && searchpos('\<'.curs_var.'\>', 'wn') == searchpos('\<'.curs_var.'\>','bcwn')
+    elseif varname !~ ':' && searchpos('\<'.curs_var, 'wn') == searchpos('\<'.curs_var,'bcwn')
         highlight! TRACK_PERL_VAR_ACTIVE   cterm=NONE
         highlight! link TRACK_PERL_VAR_ACTIVE   TRACK_PERL_VAR_UNUSED
         echohl TRACK_PERL_VAR_UNUSED
@@ -275,7 +276,7 @@ function! TPV_track_perl_var ()
     endif
 
     " Set up the match for variables...
-    let g:track_perl_var = matchadd('TRACK_PERL_VAR_ACTIVE', '\<'.curs_var.'\>\%(\_$\|\W\@=\)', 1000, s:match_id)
+    let g:track_perl_var = matchadd('TRACK_PERL_VAR_ACTIVE', '\<'.curs_var.'\%(\_$\|\W\@=\)', 1000, s:match_id)
 
     " Remember the variable...
     let s:prev_sigil   = sigil
@@ -308,27 +309,27 @@ function! TPV_locate_perl_var ()
     if sigil == '@' && bracket != '{' || sigil == '$#' || sigil =~ '[$%]' && bracket == '['
         let sigil = '@'
         let curs_var = '\C\%('
-                   \ . '[$%]\_s*\%('.varname.'\ze\|[{]'.varname.'\ze[}]\)\%(\_s*[[]\)\@=\|'
-                   \ . '[$]#\_s*\%('.varname.'\ze\|[{]'.varname.'\ze[}]\)\|'
-                   \ .  '[@]\_s*\%('.varname.'\ze\|[{]'.varname.'\ze[}]\)\%(\_s*[{]\)\@!'
+                   \ . '[$%]\_s*\%('.varname.'\>\ze\|{'.varname.'}\ze\)\%(\_s*[[]\)\@=\|'
+                   \ . '[$]#\_s*\%('.varname.'\>\ze\|{'.varname.'}\ze\)\|'
+                   \ .  '[@]\_s*\%('.varname.'\>\ze\|{'.varname.'}\ze\)\%(\_s*[{]\)\@!'
                    \ . '\)'
 
     " Handle hashes: %hash, $hash{...}, @hash{...}...
     elseif sigil == '%' && bracket != '[' || sigil =~ '[$@]' && bracket == '{'
         let sigil = '%'
         let curs_var = '\C\%('
-                   \ . '[$@]\_s*\%('.varname.'\ze\|[{]'.varname.'\ze[}]\)\%(\_s*[{]\)\@=\|'
-                   \ .  '[%]\_s*\%('.varname.'\ze\|[{]'.varname.'\ze[}]\)\%(\_s*[[]\)\@!'
+                   \ . '[$@]\_s*\%('.varname.'\>\ze\|{'.varname.'}\ze\)\%(\_s*[{]\)\@=\|'
+                   \ .  '[%]\_s*\%('.varname.'\>\ze\|{'.varname.'}\ze\)\%(\_s*[[]\)\@!'
                    \ . '\)'
 
     " Handle scalars: $scalar
     else
         let sigil = '$'
-        let curs_var = '\C[$]\_s*\%('.varname.'\ze\|[{]'.varname.'\ze[}]\)\%(\_s*[[{]\)\@!'
+        let curs_var = '\C[$]\_s*\%('.varname.'\>\ze\|{'.varname.'}\ze\)\%(\_s*[[{]\)\@!'
     endif
 
     " Finally, search forwards for the declaration and report the outcome...
-    call search('\<'.curs_var.'\>', 's')
+    call search('\<'.curs_var, 's')
     return curs_var
 
 endfunction
@@ -409,21 +410,21 @@ function! TPV_rename_perl_var (mode) range
     " Handle arrays: @array, $array[...], $#array...
     if sigil == '@'
         let curs_var = '\C\%('
-                   \ . '[$%]\_s*\%(\zs'.varname.'\ze\|[{]\zs'.varname.'\ze[}]\)\%(\_s*[[]\)\@=\|'
-                   \ . '[$]#\_s*\%(\zs'.varname.'\ze\|[{]\zs'.varname.'\ze[}]\)\|'
-                   \ .  '[@]\_s*\%(\zs'.varname.'\ze\|[{]\zs'.varname.'\ze[}]\)\%(\_s*[{]\)\@!'
+                   \ . '[$%]\_s*\%(\zs'.varname.'\>\ze\|{\zs'.varname.'\ze}\)\%(\_s*[[]\)\@=\|'
+                   \ . '[$]#\_s*\%(\zs'.varname.'\>\ze\|{\zs'.varname.'\ze}\)\|'
+                   \ .  '[@]\_s*\%(\zs'.varname.'\>\ze\|{\zs'.varname.'\ze}\)\%(\_s*[{]\)\@!'
                    \ . '\)'
 
     " Handle hashes: %hash, $hash{...}, @hash{...}...
     elseif sigil == '%'
         let curs_var = '\C\%('
-                   \ . '[$@]\_s*\%(\zs'.varname.'\ze\|[{]\zs'.varname.'\ze[}]\)\%(\_s*[{]\)\@=\|'
-                   \ .  '[%]\_s*\%(\zs'.varname.'\ze\|[{]\zs'.varname.'\ze[}]\)\%(\_s*[[]\)\@!'
+                   \ . '[$@]\_s*\%(\zs'.varname.'\>\ze\|{\zs'.varname.'\ze}\)\%(\_s*[{]\)\@=\|'
+                   \ .  '[%]\_s*\%(\zs'.varname.'\>\ze\|{\zs'.varname.'\ze}\)\%(\_s*[[]\)\@!'
                    \ . '\)'
 
     " Handle scalars: $scalar
     else
-        let curs_var = '\C[$]\_s*\%(\zs'.varname.'\ze\|[{]\zs'.varname.'\ze[}]\)\%(\_s*[[{]\)\@!'
+        let curs_var = '\C[$]\_s*\%(\zs'.varname.'\>\ze\|{\zs'.varname.'\ze}\)\%(\_s*[[{]\)\@!'
     endif
 
     " Request the new name...
@@ -441,7 +442,7 @@ function! TPV_rename_perl_var (mode) range
     endif
 
     " Verify that it's safe...
-    let check_new_var = substitute('\<'.curs_var.'\>', varname, new_varname, 'g')
+    let check_new_var = substitute('\<'.curs_var, varname, new_varname, 'g')
     if search(check_new_var, 'wnc')
         echohl TRACK_PERL_VAR_QUESTION
         echon "\rA variable named " . sigil . new_varname . ' already exists. Proceed anyway? '
@@ -459,7 +460,7 @@ function! TPV_rename_perl_var (mode) range
 
     " Apply the transformation...
     let range = (a:mode == 'normal' ? '%' : a:firstline . ',' . a:lastline)
-    exec range . 's/\<' . curs_var . '\>/' . new_varname . '/g'
+    exec range . 's/\<' . curs_var . '/' . new_varname . '/g'
 
     " Return to original position...
     normal ``
