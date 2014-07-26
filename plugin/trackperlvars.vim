@@ -244,7 +244,7 @@ function! TPV_track_perl_var ()
     " Special highlighting and descriptions for builtins...
     let desc = get(s:PUNCT_VAR_DESC, sigil.varname, '')
     if len(desc)
-        highlight! TRACK_PERL_VAR_ACTIVE   cterm=NONE
+        highlight!      TRACK_PERL_VAR_ACTIVE   cterm=NONE
         highlight! link TRACK_PERL_VAR_ACTIVE   TRACK_PERL_VAR_BUILTIN
 
         echohl TRACK_PERL_VAR_BUILTIN
@@ -254,7 +254,7 @@ function! TPV_track_perl_var ()
 
     " Special highlighting for undeclared variables...
     elseif varname !~ ':' && !search('^[^#]*\%(my\|our\|state\).*'.sigil.varname.'\%(\_$\|\W\@=\)', 'Wbnc')
-        highlight! TRACK_PERL_VAR_ACTIVE   cterm=NONE
+        highlight!      TRACK_PERL_VAR_ACTIVE   cterm=NONE
         highlight! link TRACK_PERL_VAR_ACTIVE   TRACK_PERL_VAR_UNDECLARED
         echohl TRACK_PERL_VAR_UNDECLARED
         echo 'Undeclared variable'
@@ -263,16 +263,40 @@ function! TPV_track_perl_var ()
 
     " Special highlighting for singleton variables...
     elseif varname !~ ':' && searchpos('\<'.curs_var, 'wn') == searchpos('\<'.curs_var,'bcwn')
-        highlight! TRACK_PERL_VAR_ACTIVE   cterm=NONE
+        highlight!      TRACK_PERL_VAR_ACTIVE   cterm=NONE
         highlight! link TRACK_PERL_VAR_ACTIVE   TRACK_PERL_VAR_UNUSED
         echohl TRACK_PERL_VAR_UNUSED
         echo 'Unused variable'
         echohl None
         let s:displaying_message = 1
 
-    elseif s:displaying_message
-        echo ""
-        let s:displaying_message = 0
+    " Special highlighting for ordinary variables...
+    else
+        highlight!      TRACK_PERL_VAR_ACTIVE   cterm=NONE
+        highlight! link TRACK_PERL_VAR_ACTIVE   TRACK_PERL_VAR
+
+        " Does this var have a descriptive comment???
+        let new_message = 0
+        let decl_pat = '\C^[^#]*\%(my\|our\|state\).*\zs'.sigil.varname.'\%(\_$\|\W\@=\)'
+        let decl_line_num = search(decl_pat, 'Wcbn')
+        if decl_line_num   " Ugly nested if's to minimize computation per cursor move...
+            let decl_line = getline(decl_line_num)
+            if decl_line =~ '\s#\s'
+                let decl_line = substitute(decl_line, '.*\s#\s', sigil.varname.': ', '')
+                if len(decl_line)
+                    echohl TRACK_PERL_VAR
+                    echo decl_line
+                    echohl None
+                    let s:displaying_message = 1
+                    let new_message = 1
+                endif
+            endif
+        endif
+
+        if s:displaying_message && !new_message
+            echo ""
+            let s:displaying_message = 0
+        endif
     endif
 
     " Set up the match for variables...
