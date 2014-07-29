@@ -105,21 +105,21 @@ let s:PUNCT_VAR_DESC = {
 \  '$('                     :  'Real group ID of the current process',
 \  '$)'                     :  'Effective group ID of the current process',
 \  '$*'                     :  'Regex multiline matching flag [removed: use /m instead]',
-\  '$+'                     :  'Final capture group of most recent regex match',
 \  '$,'                     :  'Output field separator for print() and say()',
 \  '$-'                     :  'Number of lines remaining in current output page',
 \  '$.'                     :  'Line number of last input line',
 \  '$/'                     :  'Input record separator (end-of-line marker on inputs)',
 \  '$0'                     :  'Program name',
-\  '$1'                     :  'First captured substring from most recent regex match',
-\  '$2'                     :  'Second captured substring from most recent regex match',
-\  '$3'                     :  'Third captured substring from most recent regex match',
-\  '$4'                     :  'Fourth captured substring from most recent regex match',
-\  '$5'                     :  'Fifth captured substring from most recent regex match',
-\  '$6'                     :  'Sixth captured substring from most recent regex match',
-\  '$7'                     :  'Seventh captured substring from most recent regex match',
-\  '$8'                     :  'Eighth captured substring from most recent regex match',
-\  '$9'                     :  'Ninth captured substring from most recent regex match',
+\  '$1'                     :  'First capture group from most recent regex match',
+\  '$2'                     :  'Second capture group from most recent regex match',
+\  '$3'                     :  'Third capture group from most recent regex match',
+\  '$4'                     :  'Fourth capture group from most recent regex match',
+\  '$5'                     :  'Fifth capture group from most recent regex match',
+\  '$6'                     :  'Sixth capture group from most recent regex match',
+\  '$7'                     :  'Seventh capture group from most recent regex match',
+\  '$8'                     :  'Eighth capture group from most recent regex match',
+\  '$9'                     :  'Ninth capture group from most recent regex match',
+\  '$+'                     :  'Final capture group of most recent regex match',
 \  '$:'                     :  'Break characters for format() lines',
 \  '$;'                     :  'Hash subscript separator for key concatenation',
 \  '$<'                     :  'Real uid of the current process',
@@ -183,6 +183,8 @@ let s:PUNCT_VAR_DESC = {
 \  '@INC'                   :  'Search path for loading modules',
 \  '@_'                     :  'Subroutine arguments'
 \}
+
+let s:ORDINAL = { '1':'st', '2':'nd', '3':'rd' }
 
 let s:MATCH_VAR_PAT = join([
 \     '\(',
@@ -273,8 +275,11 @@ function! TPV_track_perl_var ()
     endif
 
     " Special highlighting and descriptions for builtins...
-    echomsg '['.sigil.varname.']: ' . get(s:PUNCT_VAR_DESC, sigil.varname, '<none>')
-    let desc = get(s:PUNCT_VAR_DESC, sigil.varname, '')
+    let desc = get(s:PUNCT_VAR_DESC, sigil.varname,
+             \     varname =~ '^\d\+$'
+             \      ? varname . get(s:ORDINAL,varname[-1:],'th') . ' capture group of most recent regex match'
+             \      : ''
+             \ )
     if len(desc)
         highlight!      TRACK_PERL_VAR_ACTIVE   cterm=NONE
         highlight! link TRACK_PERL_VAR_ACTIVE   TRACK_PERL_VAR_BUILTIN
