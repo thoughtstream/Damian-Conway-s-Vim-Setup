@@ -18,13 +18,21 @@ set cpo&vim
 "=====[ Interface ]==========================================
 
 " Track vars after each cursor movement...
-augroup TrackVar
-    autocmd!
-    au CursorMoved  *.pl,*.pm,*.t  call TPV_track_perl_var()
-    au CursorMovedI *.pl,*.pm,*.t  call TPV_track_perl_var()
+au FileType * call TPV__maybe_enable()
 
-    au BufEnter     *.pl,*.pm,*.t  call TPV__setup()
-augroup END
+function! TPV__maybe_enable ()
+  if &filetype != 'perl'
+    return
+  endif
+
+  augroup TrackVar
+      autocmd!
+      au CursorMoved  <buffer>  call TPV_track_perl_var()
+      au CursorMovedI <buffer>  call TPV_track_perl_var()
+
+      au BufEnter     <buffer>  call TPV__setup()
+  augroup END
+endfunction
 
 function! TPV__setup ()
     " Remember how * was set up (if it was) and change it...
