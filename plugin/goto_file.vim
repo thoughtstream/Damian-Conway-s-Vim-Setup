@@ -93,7 +93,7 @@ function! g:GTF_goto_file ()
             if status == 'unique'
                 let input .= completion
                 let input_active .= completion
-                let next_char = (getftype(file_list[0]) == 'dir' ? '' : ' ')
+                let next_char = (getftype(glob(file_list[0])) == 'dir' ? '' : ' ')
 
             elseif status == 'multi'
                 let [selection, next_char] = s:cycle('Go to: ' . input_processed, file_list)
@@ -131,6 +131,9 @@ function! g:GTF_goto_file ()
 
         " Work out the new list of compatible files...
         let file_list = glob(input_active =~ '\*$' ? input_active : input_active.'*', 0, 1)
+        if input_active[0] == '~'
+            let file_list = map(file_list, 'substitute(v:val, "^".$HOME, "\\~", "")')
+        endif
         let file_list = map(file_list, 'getftype(v:val) == "dir" ? v:val."/" : v:val')
         let file_list = s:simplify_completions(file_list)
 
@@ -293,7 +296,7 @@ endfunction
 function! s:cycle (prefix, file_list)
     " Set up the queue and the slops bucket...
     let common = s:common_prefix(a:file_list)
-    let list = [common, common.'*'] + copy(a:file_list)
+    let list = [common] + copy(a:file_list)
     let shown_list = []
 
     " Cycle endlessly...

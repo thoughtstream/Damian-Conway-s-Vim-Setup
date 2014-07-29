@@ -1404,10 +1404,3 @@ function! Undouble_Completions ()
     let line = getline('.')
     call setline('.', substitute(line, '\(\k\+\)\%'.col.'c\zs\1', '', ''))
 endfunction
-
-
-
-augroup CSS_EQALIGN
-    autocmd!
-    autocmd BufEnter *.css  nmap <buffer><silent> = :call EQAS_Align('nmap', {'pattern':':'})<CR>
-augroup END
