@@ -221,6 +221,8 @@ function! TPV_track_perl_var ()
         return
     else
         highlight! link TRACK_PERL_VAR_ACTIVE  TRACK_PERL_VAR
+        " Remove previous echomsg so that a definition isn't showing
+        echomsg ''
     endif
 
     " Remove previous highlighting...
