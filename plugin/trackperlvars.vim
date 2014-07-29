@@ -287,7 +287,7 @@ function! TPV_track_perl_var ()
 
         " Does this var have a descriptive comment???
         let new_message = 0
-        let decl_pat = '\C^[^#]*\%(my\|our\|state\).*\zs'.sigil.varname.'\%(\_$\|\W\@=\)'
+        let decl_pat = '\C^[^#]*\%(my\|our\|state\)\%(\s*([^)]*\|\s*\)\zs'.sigil.varname.'\%(\_$\|\W\@=\)'
         let decl_line_num = search(decl_pat, 'Wcbn')
         if decl_line_num   " Ugly nested if's to minimize computation per cursor move...
             let decl_line = getline(decl_line_num)
@@ -414,7 +414,7 @@ function! TPV_locate_perl_var_decl ()
     endif
 
     " Otherwise search backwards for the declaration and report the outcome...
-    let decl_pat = '\C^[^#]*\%(my\|our\|state\).*\zs'.sigil.varname.'\%(\_$\|\W\@=\)'
+    let decl_pat = '\C^[^#]*\%(my\|our\|state\)\%(\s*([^)]*\|\s*\)\zs'.sigil.varname.'\%(\_$\|\W\@=\)'
     if !search(decl_pat, 'Wbs')
         echohl WarningMsg
         echo "Can't find a declaration before this point"
