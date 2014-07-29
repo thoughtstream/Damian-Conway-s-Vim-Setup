@@ -36,7 +36,7 @@ let s:QUOTELIKE
 
 let s:LINE_WITH_EQ
 \    = '^\(\%('.s:QUOTELIKE.'\|[^''"]\)\{-}\)\s*'
-\    . '\(\%([~.*/%+-]\|||\?\|&&\?\|//\?\)\?=\@<!=[=~]\@!\)'
+\    . '\(<==\|==\?>\|\%([~.*/%+-]\|||\?\|&&\?\|//\?\)\?=\@<!=[=~]\@!\)'
 \    . '\s*\(.*\)$'
 
 let s:LINE_WITH_EQ_VIM
@@ -117,7 +117,7 @@ function EQAS_Align (mode, ...) range
     for line in lines
         let newline = empty(line.op)
         \ ? line.text
-        \ : printf("%-*s%*s%s", max_lval, line.lval, max_op, line.op, line.rval)
+        \ : printf("%-*s%*s %s", max_lval, line.lval, max_op, line.op, line.rval)
 
         call setline(linenum, newline)
         let linenum += 1

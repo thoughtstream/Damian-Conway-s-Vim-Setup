@@ -93,7 +93,7 @@ function! g:GTF_goto_file ()
             if status == 'unique'
                 let input .= completion
                 let input_active .= completion
-                let next_char = (getftype(glob(file_list[0])) == 'dir' ? '' : ' ')
+                let next_char = (getftype(glob(file_list[0])) == 'dir' ? '/' : ' ')
 
             elseif status == 'multi'
                 let [selection, next_char] = s:cycle('Go to: ' . input_processed, file_list)
