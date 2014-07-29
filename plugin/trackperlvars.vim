@@ -22,7 +22,10 @@ au FileType * call TPV__maybe_enable()
 
 function! TPV__maybe_enable ()
   if &filetype != 'perl'
-    return
+      augroup TrackVar
+          autocmd!
+      augroup END
+      return
   endif
 
   augroup TrackVar
