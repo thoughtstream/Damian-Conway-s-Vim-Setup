@@ -24,6 +24,7 @@ augroup TrackVar
     au CursorMovedI *.pl,*.pm,*.t  call TPV_track_perl_var()
 
     au BufEnter     *.pl,*.pm,*.t  call TPV__setup()
+    au BufLeave     *.pl,*.pm,*.t  call TPV__teardown()
 augroup END
 
 function! TPV__setup ()
@@ -42,11 +43,20 @@ function! TPV__setup ()
     nmap <special> <buffer><silent> tt  :let g:track_perl_var_locked = ! g:track_perl_var_locked<CR>:call TPV_track_perl_var()<CR>
 
     " Adjust keywords to cover sigils and qualifiers...
-    set iskeyword+=$
-    set iskeyword+=%
-    set iskeyword+=@-@
-    set iskeyword+=:
-    set iskeyword-=,
+    setlocal iskeyword+=$
+    setlocal iskeyword+=%
+    setlocal iskeyword+=@-@
+    setlocal iskeyword+=:
+    setlocal iskeyword-=,
+
+endfunction
+function! TPV__teardown ()
+
+    " Remove any active highlighting...
+    try
+        call matchdelete(s:match_id)
+    catch /./
+    endtry
 
 endfunction
 
