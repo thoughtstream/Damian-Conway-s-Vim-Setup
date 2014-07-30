@@ -1311,7 +1311,10 @@ highlight ColorColumn ctermbg=magenta
 
 function! MarkMargin (on)
     if exists('b:MarkMargin')
-        call matchdelete(b:MarkMargin)
+        try 
+            call matchdelete(b:MarkMargin)
+        catch /./
+        endtry
         unlet b:MarkMargin
     endif
     if a:on

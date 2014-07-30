@@ -1,8 +1,8 @@
 " Vim global plugin for tracking Perl vars in source
-                   \ .  '[@]\_s*\zs'.varname.'\ze\|{\zs'.varname.'\ze}\%(\_s*[{]\)\@!'
+"
 " Last change:  Sun May 18 11:40:10 EST 2014
-" Maintainer:	Damian Conway
-" License:	This file is placed in the public domain.
+" Maintainer:   Damian Conway
+" License:  This file is placed in the public domain.
 
 " If already loaded, we're done...
 if exists("loaded_trackperlvars")
@@ -14,24 +14,30 @@ let loaded_trackperlvars = 1
 let s:save_cpo = &cpo
 set cpo&vim
 
-
 "=====[ Interface ]==========================================
 
 " Track vars after each cursor movement...
 augroup TrackVarGlobal
     autocmd!
     autocmd BufEnter *  call TPV__setup()
+    autocmd WinEnter *  call TPV__setup()
     autocmd BufLeave *  call TPV__teardown()
 augroup END
 
 function! TPV__setup ()
-    " Set up autocommands...
-
+    " Only in Perl files...
     if &filetype == 'perl' || expand("%:e") =~ '^\%(\.p[lm]\|\.t\)$'
+
+        " Tracking can be locked by setting this variable
+        if !exists('b:track_perl_var_locked')
+            let b:track_perl_var_locked = 0
+        endif
+
+        " Set up autocommands...
         augroup TrackVarBuffer
             autocmd!
-            au CursorMoved  <buffer>  call TPV_track_perl_var()
-            au CursorMovedI <buffer>  call TPV_track_perl_var()
+            autocmd CursorMoved  <buffer>  call TPV_track_perl_var()
+            autocmd CursorMovedI <buffer>  call TPV_track_perl_var()
         augroup END
 
         " Remember how * was set up (if it was) and change it...
@@ -46,7 +52,7 @@ function! TPV__setup ()
         nmap <special> <buffer><silent> gd  :let @/ = TPV_locate_perl_var_decl()<CR>
 
         " tt --> toggle tracking...
-        nmap <special> <buffer><silent> tt  :let g:track_perl_var_locked = ! g:track_perl_var_locked<CR>:call TPV_track_perl_var()<CR>
+        nmap <special> <buffer><silent> tt  :let b:track_perl_var_locked = ! b:track_perl_var_locked<CR>:call TPV_track_perl_var()<CR>
 
         " Adjust keywords to cover sigils and qualifiers...
         setlocal iskeyword+=$
@@ -55,9 +61,19 @@ function! TPV__setup ()
         setlocal iskeyword+=:
         setlocal iskeyword-=,
 
+        " Restore any frozen tracking...
+        if b:track_perl_var_locked
+            highlight! link TRACK_PERL_VAR_ACTIVE  TRACK_PERL_VAR_LOCKED
+            try
+                call matchadd('TRACK_PERL_VAR_ACTIVE', b:track_perl_var_locked_pat, 1000, s:match_id)
+            catch /./
+            endtry
+        endif
     endif
 
 endfunction
+
+
 function! TPV__teardown ()
 
     " Remove any active highlighting...
@@ -78,9 +94,6 @@ let s:prev_varname = ""
 
 " Select an unlikely match number (e.g. the Neighbours of the Beast)...
 let s:match_id = 664668
-
-" Tracking can be locked by setting this variable
-let g:track_perl_var_locked = 0
 
 " This tracks whether plugin is displaying a message...
 let s:displaying_message = 0
@@ -218,7 +231,7 @@ let s:MATCH_VAR_PAT = join([
 function! TPV_track_perl_var ()
     " Is tracking locked???
     highlight TRACK_PERL_VAR_ACTIVE   cterm=NONE
-    if g:track_perl_var_locked
+    if b:track_perl_var_locked
         highlight! link TRACK_PERL_VAR_ACTIVE  TRACK_PERL_VAR_LOCKED
         return
     else
@@ -251,27 +264,30 @@ function! TPV_track_perl_var ()
     let varname = escape(substitute( get(varparts,2), '^{\([^^].*\)}$', '\1', 'g'),'\\')
     let bracket = get(varparts,3,'')
 
+    " Do we need to bound the varname???
+    let boundary = varname =~ '\w$' ? '\>' : ''
+
     " Handle arrays: @array, $array[...], $#array...
     if sigil == '@' && bracket != '{' || sigil == '$#' || sigil =~ '[$%]' && bracket == '['
         let sigil = '@'
         let curs_var = '\C\%('
-                \ . '[$%]\_s*\%('.varname.'\>\|{'.varname.'}\)\%(\_s*[[]\)\@=\|'
-                \ . '[$]#\_s*\%('.varname.'\>\|{'.varname.'}\)\|'
-                \ .  '[@]\_s*\%('.varname.'\>\|{'.varname.'}\)\%(\_s*[{]\)\@!'
+                \ . '[$%]\_s*\%('.varname.boundary.'\|{'.varname.'}\)\%(\_s*[[]\)\@=\|'
+                \ . '[$]#\_s*\%('.varname.boundary.'\|{'.varname.'}\)\|'
+                \ .  '[@]\_s*\%('.varname.boundary.'\|{'.varname.'}\)\%(\_s*[{]\)\@!'
                 \ . '\)'
 
     " Handle hashes: %hash, $hash{...}, @hash{...}...
     elseif sigil == '%' && bracket != '[' || sigil =~ '[$@]' && bracket == '{'
         let sigil = '%'
         let curs_var = '\C\%('
-                \ . '[$@]\_s*\%('.varname.'\>\|{'.varname.'}\)\%(\_s*[{]\)\@=\|'
-                \ .  '[%]\_s*\%('.varname.'\>\|{'.varname.'}\)\%(\_s*[[]\)\@!'
+                \ . '[$@]\_s*\%('.varname.boundary.'\|{'.varname.'}\)\%(\_s*[{]\)\@=\|'
+                \ .  '[%]\_s*\%('.varname.boundary.'\|{'.varname.'}\)\%(\_s*[[]\)\@!'
                 \ . '\)'
 
     " Handle scalars: $scalar
     else
         let sigil = '$'
-        let curs_var = '\C[$]\_s*\%('.varname.'\>\|{'.varname.'}\)\%(\_s*[[{]\)\@!'
+        let curs_var = '\C[$]\_s*\%('.varname.boundary.'\|{'.varname.'}\)\%(\_s*[[{]\)\@!'
     endif
 
     " Special highlighting and descriptions for builtins...
@@ -314,7 +330,7 @@ function! TPV_track_perl_var ()
 
         " Does this var have a descriptive comment???
         let new_message = 0
-        let decl_pat = '\C^[^#]*\%(my\|our\|state\)\%(\s*([^)]*\|\s*\)\zs'.sigil.varname.'\%(\_$\|\W\@=\)'
+        let decl_pat = '\C^[^#]*\%(my\|our\|state\)\%(\s*([^)]*\|\s*\)\zs'.sigil.varname.'\%(\_$\|\W\)\@='
         let decl_line_num = search(decl_pat, 'Wcbn')
         if decl_line_num   " Ugly nested if's to minimize computation per cursor move...
             let decl_line = getline(decl_line_num)
@@ -337,7 +353,11 @@ function! TPV_track_perl_var ()
     endif
 
     " Set up the match for variables...
-    let g:track_perl_var = matchadd('TRACK_PERL_VAR_ACTIVE', '\<'.curs_var.'\%(\_$\|\W\@=\)', 1000, s:match_id)
+    let b:track_perl_var_locked_pat = '\<'.curs_var.'\%(\_$\|\W\@=\)'
+    try
+        call matchadd('TRACK_PERL_VAR_ACTIVE', b:track_perl_var_locked_pat, 1000, s:match_id)
+    catch /./
+    endtry
 
     " Remember the variable...
     let s:prev_sigil   = sigil
@@ -441,7 +461,7 @@ function! TPV_locate_perl_var_decl ()
     endif
 
     " Otherwise search backwards for the declaration and report the outcome...
-    let decl_pat = '\C^[^#]*\%(my\|our\|state\)\%(\s*([^)]*\|\s*\)\zs'.sigil.varname.'\%(\_$\|\W\@=\)'
+    let decl_pat = '\C^[^#]*\%(my\|our\|state\)\%(\s*([^)]*\|\s*\)\zs'.sigil.varname.'\%(\_$\|\W\)\@='
     if !search(decl_pat, 'Wbs')
         echohl WarningMsg
         echo "Can't find a declaration before this point"
