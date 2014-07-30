@@ -279,7 +279,6 @@ set autoindent                              "Retain indentation on next line
 set smartindent                             "Turn on autoindenting of blocks
 
 inoremap <silent> #  X<C-H>#<C-R>=SmartOctothorpe()<CR>|  "And no magic outdent for comments
-nnoremap <silent> >> :call ShiftLine()<CR>|               "And no shift magic on comments
 
 function! SmartOctothorpe ()
     if &filetype =~ '^perl' && search('^.\{-}\S.\{-}\s#\%#$','bn')
@@ -288,6 +287,9 @@ function! SmartOctothorpe ()
         return ""
     endif
 endfunction
+
+
+nnoremap <silent> >> :call ShiftLine()<CR>|               "And no shift magic on comments
 
 function! ShiftLine()
     set nosmartindent
@@ -1417,6 +1419,19 @@ function! Undouble_Completions ()
     let col  = getpos('.')[2]
     let line = getline('.')
     call setline('.', substitute(line, '\(\k\+\)\%'.col.'c\zs\1', '', ''))
+endfunction
+
+
+"=====[ Autocomplete arrows ]===========================
+
+inoremap <silent> =>  =><C-R>=SmartArrow()<CR>
+
+function! SmartArrow ()
+    if &filetype =~ '^perl' && search('^.\{-}\S.\{-}\s=>\%#$','bn')
+        return "\<ESC>:call EQAS_Align('nmap',{'pattern':'\\%(\\S\\s*\\)\\@<==>'})\<CR>A"
+    else
+        return ""
+    endif
 endfunction
 
 
