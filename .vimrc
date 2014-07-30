@@ -278,8 +278,16 @@ set wrapmargin=2                            "Wrap 2 characters from the edge of 
 set autoindent                              "Retain indentation on next line
 set smartindent                             "Turn on autoindenting of blocks
 
-inoremap # X<C-H>#|                         "And no magic outdent for comments
-nnoremap <silent> >> :call ShiftLine()<CR>| "And no shift magic on comments
+inoremap <silent> #  X<C-H>#<C-R>=SmartOctothorpe()<CR>|  "And no magic outdent for comments
+nnoremap <silent> >> :call ShiftLine()<CR>|               "And no shift magic on comments
+
+function! SmartOctothorpe ()
+    if &filetype =~ '^perl' && search('^.\{-}\S.\{-}\s#\%#$','bn')
+        return "\<ESC>:call EQAS_Align('nmap',{'pattern':'\\%(\\S\\s*\\)\\@<=#'})\<CR>A"
+    else
+        return ""
+    endif
+endfunction
 
 function! ShiftLine()
     set nosmartindent
