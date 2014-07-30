@@ -818,19 +818,22 @@ call SmartcomAdd( '\*\*',  '\*\*',    NOTHING,                                  
 
 "After an alignable, align...
 function! AlignOnPat (pat)
-    return "\<ESC>:call EQAS_Align('nmap',{'pattern':'" . a:pat . "'})\<CR>/" . a:pat . "/e\<CR>a\<SPACE>"
+    return "\<ESC>:call EQAS_Align('nmap',{'pattern':'" . a:pat . "'})\<CR>/" . a:pat . "/e\<CR>:nohlsearch\<CR>a\<SPACE>"
 endfunction
                 " Left         Right        Insert
                 " ==========   =====        =============================
-call SmartcomAdd( '=',         ANYTHING,    "\<ESC>:call EQAS_Align('nmap')\<CR>/=/\<CR>a\<SPACE>")
+call SmartcomAdd( '=',         ANYTHING,    "\<ESC>:call EQAS_Align('nmap')\<CR>/=/\<CR>:nohlsearch\<CR>a\<SPACE>")
 call SmartcomAdd( '=>',        ANYTHING,    AlignOnPat('=>'))
 call SmartcomAdd( '\s#',       ANYTHING,    AlignOnPat('\%(\S\s*\)\@<= #'))
-call SmartcomAdd( ':',         ANYTHING,    AlignOnPat(':'),                   {'filetype':'vim'} )
+call SmartcomAdd( '[''"]\s*:', ANYTHING,    AlignOnPat(':'),                   {'filetype':'vim'} )
+call SmartcomAdd( ':',         ANYTHING,    "\<TAB>",                          {'filetype':'vim'} )
+
 
                 " Left         Right   Insert                                  Where
                 " ==========   =====   =============================           ===================
 " Vim keywords...
-call SmartcomAdd( '^\s*func',  EOL,    "tion!\<CR>endfunction\<UP> ",          {'filetype':'vim'} )
+call SmartcomAdd( '^\s*func\%[tion]',
+\                              EOL,    "\<C-W>function!\<CR>endfunction\<UP> ",{'filetype':'vim'} )
 call SmartcomAdd( '^\s*for',   EOL,    " ___ in ___\n___\n\<C-D>endfor\n___",  {'filetype':'vim'} )
 call SmartcomAdd( '^\s*if',    EOL,    " ___ \n___\n\<C-D>endif\n___",         {'filetype':'vim'} )
 call SmartcomAdd( '^\s*while', EOL,    " ___ \n___\n\<C-D>endwhile\n___",      {'filetype':'vim'} )
@@ -1407,3 +1410,5 @@ function! Undouble_Completions ()
     let line = getline('.')
     call setline('.', substitute(line, '\(\k\+\)\%'.col.'c\zs\1', '', ''))
 endfunction
+
+

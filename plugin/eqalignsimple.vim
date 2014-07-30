@@ -26,7 +26,7 @@ set cpo&vim
 " Or:
 
 "        cat => 'feline',
-"        lion = leo => 'leonine',
+"        leo => 'leonine',
 "        cow => 'bovine',
 "        elephant => 'elephantine',
 
@@ -74,7 +74,7 @@ function EQAS_Align (mode, ...) range
         endwhile
 
         "The resulting sequence becomes the alignment symbol...
-        let search_pat = '^\(.\{-}\)\s*\(\V' . curr_line[start_pos : end_pos] . '\m\)\(.*\)$'
+        let search_pat = '^\(.\{-}\)\s*\(\V' . curr_line[start_pos : end_pos] . '\m\)\s*\(.*\)$'
     endif
 
     "Locate block of code to be considered (same indentation, no blanks)
