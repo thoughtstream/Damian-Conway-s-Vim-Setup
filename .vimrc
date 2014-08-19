@@ -278,16 +278,6 @@ set wrapmargin=2                            "Wrap 2 characters from the edge of 
 set autoindent                              "Retain indentation on next line
 set smartindent                             "Turn on autoindenting of blocks
 
-inoremap <silent> #  X<C-H>#<C-R>=SmartOctothorpe()<CR>|  "And no magic outdent for comments
-
-function! SmartOctothorpe ()
-    if &filetype =~ '^perl' && search('^.\{-}\S.\{-}\s#\%#$','bn')
-        return "\<ESC>:call EQAS_Align('nmap',{'pattern':'\\%(\\S\\s*\\)\\@<=#'})\<CR>A"
-    else
-        return ""
-    endif
-endfunction
-
 
 nnoremap <silent> >> :call ShiftLine()<CR>|               "And no shift magic on comments
 
@@ -1422,16 +1412,30 @@ function! Undouble_Completions ()
 endfunction
 
 
-"=====[ Autocomplete arrows ]===========================
+"=====[ Autocomplete Perl code ]===========================
+" (Note insertion of X<C-H># to overcome smartindents mania for C-like #'s)
 
-inoremap <silent> =>  =><C-R>=SmartArrow()<CR>
+inoremap <silent> >        ><C-R>=SmartArrow()<CR>
+inoremap <silent> #  X<C-H>#<C-R>=SmartOctothorpe()<CR>
 
 function! SmartArrow ()
-    if &filetype =~ '^perl' && search('^.\{-}\S.\{-}\s=>\%#$','bn')
-        return "\<ESC>:call EQAS_Align('nmap',{'pattern':'\\%(\\S\\s*\\)\\@<==>'})\<CR>A"
+    if &filetype =~ '^perl' && search('^.*\S.*\s=>\%#$', 'bn', line('.'))
+        return "\<ESC>"
+            \. ":call EQAS_Align('nmap',{'pattern':'=>'})\<CR>"
+            \. ":call EQAS_Align('nmap',{'pattern':'\\%(\\S\\s*\\)\\@<=#'})\<CR>"
+            \. "A"
     else
         return ""
     endif
 endfunction
 
+function! SmartOctothorpe ()
+    if &filetype =~ '^perl' && search('^.\{-}\S.\{-}\s#\%#$','bn')
+        return "\<ESC>"
+            \. ":call EQAS_Align('nmap',{'pattern':'\\%(\\S\\s*\\)\\@<=#'})\<CR>"
+            \. "A"
+    else
+        return ""
+    endif
+endfunction
 
