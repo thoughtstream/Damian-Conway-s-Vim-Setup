@@ -43,9 +43,9 @@ let s:LT_CONJ_PAT = join(g:LT_CONJUNCTIONS, '\|')
 function! ListTrans_toggle_format (...) range
     " Extract the target text...
     if a:0
-        silent normal gvy
+        silent normal! gvy
     else
-        silent normal vipy
+        silent normal! vipy
     endif
     let text = getreg("")
 
@@ -77,7 +77,7 @@ function! ListTrans_toggle_format (...) range
 
             " Paste back into buffer in place of original...
             call setreg("", reformatted_text, mode())
-            silent normal gvp
+            silent normal! gv""p
             return
         endif
     endif
@@ -113,7 +113,7 @@ function! ListTrans_toggle_format (...) range
     " Rejoin and paste back into buffer in place of original...
     let reformatted_text = join(map(items, 'indent."- ".v:val."\n"'), "")
     call setreg("", reformatted_text, mode())
-    silent normal gvp
+    silent normal! gv""p
 
 endfunction
 
