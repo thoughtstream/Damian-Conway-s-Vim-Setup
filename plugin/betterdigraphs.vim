@@ -30,8 +30,8 @@
 "##                                                                          ##
 "##      AE  -->  "[AE] diphthong"  -->  Æ                                   ##
 "##      ae  -->  "[ae] diphthong"  -->  æ                                   ##
-"##      TH  -->  "[TH]ORN]         -->  Þ                                   ##
-"##      th  -->  "[th]orn]         -->  þ                                   ##
+"##      TH  -->  "[TH]ORN          -->  Þ                                   ##
+"##      th  -->  "[th]orn          -->  þ                                   ##
 "##      EH  -->  "[E]T[H]          -->  Ð                                   ##
 "##      eh  -->  "[e]t[h]          -->  ð                                   ##
 "##      ss  -->  "long e[ss]"      -->  ß                                   ##

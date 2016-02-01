@@ -25,7 +25,7 @@ augroup TrackVarGlobal
 augroup END
 
 function! TPV__setup ()
-    " Only in Perl files...
+    " Only in small Perl files...
     if &filetype == 'perl' || expand("%:e") =~ '^\%(\.p[lm]\|\.t\)$'
 
         " Tracking can be locked by setting this variable
@@ -75,7 +75,6 @@ endfunction
 
 
 function! TPV__teardown ()
-
     " Remove any active highlighting...
     try
         call matchdelete(s:match_id)
@@ -99,12 +98,12 @@ let s:match_id = 664668
 let s:displaying_message = 0
 
 " Set up initial highlight groups (unless already set)...
-highlight default      TRACK_PERL_VAR             ctermfg=white                cterm=bold
-highlight default      TRACK_PERL_VAR_QUESTION    ctermfg=white                cterm=bold
-highlight default      TRACK_PERL_VAR_LOCKED      ctermfg=cyan   ctermbg=blue  cterm=bold
-highlight default      TRACK_PERL_VAR_UNDECLARED  ctermfg=red                  cterm=bold
-highlight default      TRACK_PERL_VAR_UNUSED      ctermfg=cyan                 cterm=bold
-highlight default      TRACK_PERL_VAR_BUILTIN     ctermfg=magenta              cterm=bold
+highlight default      TRACK_PERL_VAR             ctermfg=white                cterm=bold   gui=NONE guifg=#000000 guibg=#ffffff
+highlight default      TRACK_PERL_VAR_QUESTION    ctermfg=white                cterm=bold   gui=NONE guifg=#000000 guibg=#ffffff
+highlight default      TRACK_PERL_VAR_LOCKED      ctermfg=cyan   ctermbg=blue  cterm=bold   gui=NONE guifg=#000000 guibg=#ffffff
+highlight default      TRACK_PERL_VAR_UNDECLARED  ctermfg=red                  cterm=bold   gui=NONE guifg=#000000 guibg=#ffffff
+highlight default      TRACK_PERL_VAR_UNUSED      ctermfg=cyan                 cterm=bold   gui=NONE guifg=#000000 guibg=#ffffff
+highlight default      TRACK_PERL_VAR_BUILTIN     ctermfg=magenta              cterm=bold   gui=NONE guifg=#000000 guibg=#ffffff
 highlight default link TRACK_PERL_VAR_ACTIVE      TRACK_PERL_VAR
 
 let s:PUNCT_VAR_DESC = {
@@ -194,7 +193,7 @@ let s:PUNCT_VAR_DESC = {
 \  '@ARGV'                  :  'Command line arguments',
 \  '@F'                     :  'Fields of the current input line (under autosplit mode)',
 \  '@INC'                   :  'Search path for loading modules',
-\  '@_'                     :  'Subroutine arguments'
+\  '@_'                     :  'Subroutine arguments',
 \}
 
 let s:ORDINAL = { '1':'st', '2':'nd', '3':'rd' }
@@ -230,7 +229,7 @@ let s:MATCH_VAR_PAT = join([
 " This gets called every time the cursor moves (so keep it tight!)...
 function! TPV_track_perl_var ()
     " Is tracking locked???
-    highlight TRACK_PERL_VAR_ACTIVE   cterm=NONE
+    highlight TRACK_PERL_VAR_ACTIVE   cterm=NONE gui=NONE guifg=NONE guibg=NONE
     if b:track_perl_var_locked
         highlight! link TRACK_PERL_VAR_ACTIVE  TRACK_PERL_VAR_LOCKED
         return
@@ -297,7 +296,7 @@ function! TPV_track_perl_var ()
              \      : ''
              \ )
     if len(desc)
-        highlight!      TRACK_PERL_VAR_ACTIVE   cterm=NONE
+        highlight!      TRACK_PERL_VAR_ACTIVE   cterm=NONE gui=NONE guifg=NONE guibg=NONE
         highlight! link TRACK_PERL_VAR_ACTIVE   TRACK_PERL_VAR_BUILTIN
 
         echohl TRACK_PERL_VAR_BUILTIN
@@ -307,7 +306,7 @@ function! TPV_track_perl_var ()
 
     " Special highlighting for undeclared variables...
     elseif varname !~ ':' && !search('^[^#]*\%(my\|our\|state\).*'.sigil.varname.'\%(\_$\|\W\@=\)', 'Wbnc')
-        highlight!      TRACK_PERL_VAR_ACTIVE   cterm=NONE
+        highlight!      TRACK_PERL_VAR_ACTIVE   cterm=NONE gui=NONE guifg=NONE guibg=NONE
         highlight! link TRACK_PERL_VAR_ACTIVE   TRACK_PERL_VAR_UNDECLARED
         echohl TRACK_PERL_VAR_UNDECLARED
         echo 'Undeclared variable'
@@ -316,7 +315,7 @@ function! TPV_track_perl_var ()
 
     " Special highlighting for singleton variables...
     elseif varname !~ ':' && searchpos('\<'.curs_var, 'wn') == searchpos('\<'.curs_var,'bcwn')
-        highlight!      TRACK_PERL_VAR_ACTIVE   cterm=NONE
+        highlight!      TRACK_PERL_VAR_ACTIVE   cterm=NONE gui=NONE guifg=NONE guibg=NONE
         highlight! link TRACK_PERL_VAR_ACTIVE   TRACK_PERL_VAR_UNUSED
         echohl TRACK_PERL_VAR_UNUSED
         echo 'Unused variable'
@@ -325,7 +324,7 @@ function! TPV_track_perl_var ()
 
     " Special highlighting for ordinary variables...
     else
-        highlight!      TRACK_PERL_VAR_ACTIVE   cterm=NONE
+        highlight!      TRACK_PERL_VAR_ACTIVE   cterm=NONE gui=NONE guifg=NONE guibg=NONE
         highlight! link TRACK_PERL_VAR_ACTIVE   TRACK_PERL_VAR
 
         " Does this var have a descriptive comment???

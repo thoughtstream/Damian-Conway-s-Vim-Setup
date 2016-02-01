@@ -15,10 +15,18 @@ set cpo&vim
 
 "====[ INTERFACE ]=============================================
 
-nnoremap           /   :call HLNextSetTrigger()<CR>/
-nnoremap           ?   :call HLNextSetTrigger()<CR>?
-nnoremap  <silent> n  n:call HLNext()<CR>
-nnoremap  <silent> N  N:call HLNext()<CR>
+if maparg('/','n') == ""
+    nnoremap  <unique>         /   :call HLNextSetTrigger()<CR>/
+endif
+if maparg('?','n') == ""
+    nnoremap  <unique>         ?   :call HLNextSetTrigger()<CR>?
+endif
+if maparg('n','n') == ""
+    nnoremap  <unique><silent> n  n:call HLNext()<CR>
+endif
+if maparg('N','n') == ""
+    nnoremap  <unique><silent> N  N:call HLNext()<CR>
+endif
 
 " Default highlighting for next match...
 highlight default HLNext ctermfg=white ctermbg=red
@@ -35,7 +43,7 @@ function! HLNext ()
     call HLNextOff()
 
     " Add the new highlighting...
-    let target_pat = '\c\%#'.@/
+    let target_pat = '\c\%#\%('.@/.'\)'
     let g:HLNext_matchnum = matchadd('HLNext', target_pat)
 endfunction
 

@@ -254,7 +254,7 @@ function! <SID>Complete ()
     endfor
 
     " Otherwise, if not after an identifier, no completion; just a tab...
-    if curr_line !~ '\k' . curr_pos
+    if curr_line =~ '[^:]:' . curr_pos || curr_line !~ '\k' . curr_pos
         return s:tab
 
     " Otherwise, autocomplete with next alternative

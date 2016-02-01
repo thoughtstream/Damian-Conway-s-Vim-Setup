@@ -34,7 +34,7 @@ let s:QUOTELIKE
 \   = '''\%(\\.\|[^''\\]\)*''\|'
 \   . '"\%(\\.\|[^"\\]\)*"'
 
-let s:LINE_WITH_EQ
+let s:LINE_WITH_EQ_ARROW
 \    = '^\(\%('.s:QUOTELIKE.'\|[^''"]\)\{-}\)\s*'
 \    . '\(<==\|==\?>\|\%([~.*/%+-]\|||\?\|&&\?\|//\?\)\?=\@<!=[=~]\@!\)'
 \    . '\s*\(.*\)$'
@@ -44,11 +44,24 @@ let s:LINE_WITH_EQ_VIM
 \    . '\(\%([~.*/%+-]\|||\?\|&&\?\|//\?\)\?=\@<!=[=~]\@!\)'
 \    . '\s*\(.*\)$'
 
+let s:LINE_WITH_EQ_TXT
+\    = '^\(\s*\%('.s:QUOTELIKE.'\|[^''"]\)\{-}\%(\S:\|=\@=\)\)'
+\    . '\(:\@<=\s\|=\)'
+\    . '\s*\(.*\)$'
+
 function EQAS_Align (mode, ...) range
     let option = a:0 ? a:1 : {}
 
     "What symbol to align (defaults to '=' variants)...
-    let search_pat = expand('%') =~ '\.vim$' ? s:LINE_WITH_EQ_VIM : s:LINE_WITH_EQ
+    if &filetype =~ '^\%(perl6\?\|ruby\|php\)'
+        let search_pat = s:LINE_WITH_EQ_ARROW
+    elseif &filetype == 'vim'
+        let search_pat = s:LINE_WITH_EQ_VIM
+    else
+        let search_pat = s:LINE_WITH_EQ_TXT
+    endif
+
+    "Handle config options on search...
     if strlen(get(option,'pattern',""))
         let search_pat = '^\(.\{-}\)\s*\(' . get(option,'pattern') . '\)\s*\(.*\)$'
 
@@ -81,12 +94,14 @@ function EQAS_Align (mode, ...) range
     if a:mode == 'vmap'
         let firstline = a:firstline
         let lastline  = a:lastline
+
     elseif get(option, 'paragraph')
         let firstline  = search('^\s*$','bnW') + 1
         let lastline   = search('^\s*$', 'nW') - 1
         if lastline < 0
             let lastline = line('$')
         endif
+
     else
         let indent_pat = '^' . matchstr(getline('.'), '^\s*') . '\S'
         let firstline  = search('^\%('. indent_pat . '\)\@!\|^\s*$','bnW') + 1
@@ -98,10 +113,17 @@ function EQAS_Align (mode, ...) range
 
     " Decompose lines at assignment operators...
     let lines = []
+    let visible_op_offset = 0
     for linetext in getline(firstline, lastline)
         let field = matchlist(linetext, search_pat)
-        if len(field) 
-            call add(lines, {'lval':field[1], 'op':field[2], 'rval':field[3]})
+        if len(field)
+            call add(lines, { 'lval' : substitute(field[1],'\s*$','',''),
+            \                   'op' :            field[2],
+            \                 'rval' : substitute(field[3],'^\s*','','')
+            \               })
+            if field[2] =~ '\S'
+                let visible_op_offset = 1
+            endif
         else
             call add(lines, {'text':linetext, 'op':''})
         endif
@@ -109,7 +131,7 @@ function EQAS_Align (mode, ...) range
 
     " Determine maximal lengths of lvalue and operator...
     let op_lines = filter(copy(lines),'!empty(v:val.op)')
-    let max_lval = max( map(copy(op_lines), 'strlen(v:val.lval)') ) + 1
+    let max_lval = max( map(copy(op_lines), 'strlen(v:val.lval)') ) + visible_op_offset
     let max_op   = max( map(copy(op_lines), 'strlen(v:val.op)'  ) )
 
     " Recompose lines with operators at the maximum length...

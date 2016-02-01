@@ -22,9 +22,11 @@ my %opt;
 }
 
 # Locate Perl 5 tests, unless explicitly specified...
-@ARGV = glob("*.t")            unless @ARGV;
-@ARGV = glob("t/*.t devt/*.t") unless @ARGV;
-@ARGV = "test.pl"              unless @ARGV || !-r "test.pl";
+@ARGV = glob("*.t")                   unless @ARGV;
+@ARGV = glob("t/*.t devt/*.t dt/*.t") unless @ARGV;
+@ARGV = "test.pl"                     unless @ARGV || !-r "test.pl";
+
+@ARGV = map { -d $_ ? glob("$_/*.t") : $_ } @ARGV;
 
 use TAP::Harness;
 my $harness = TAP::Harness->new({

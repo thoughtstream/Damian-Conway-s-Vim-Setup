@@ -16,10 +16,13 @@ my $DEFAULT_APP     = $DEFAULT_PERL;
 my $PERL6           = 'perl6';
 
 # Perlbrew available versions...
-sub normalize { sprintf "%03d%03d%03d", split /[.]/, shift }
+sub normalize { @_ ? sprintf("%03d%03d%03d", split /[.]/, shift) : undef }
+my @raw_versions = `perlbrew list`;
 my @perlbrew_versions = sort { normalize($a) <=> normalize($b) }
                              map { m{ perl-blead\s*\((\S+)\) | perl-(\S+) }xms ? $+ : () }
-                                 `perlbrew list`;
+                                 @raw_versions;
+my $BLEAD_VERSION = (map { m{ perl-blead\s*\((\S+)\) }xms ? $+ : () } @raw_versions )[0];
+
 chomp @perlbrew_versions;
 
 # Separate the filename and other args...
@@ -64,7 +67,7 @@ if ($is_perl5) {
 }
 
 # If there's a shebang line, use that...
-elsif (length $shebang) {
+elsif (length $shebang && !$config{debug}) {
     exec "$shebang $source_file @ARGV";
 }
 
@@ -118,6 +121,10 @@ sub slurp {
 # Execute a command under the specified version of Perl...
 sub call_via_perlbrew {
     my ($version, $config_ref, $command) = @_;
+
+    if (defined $BLEAD_VERSION && $version eq $BLEAD_VERSION) {
+        $version = 'perl-blead';
+    }
 
     # Which form of Perl???
     my $perl = 'perl';
@@ -178,7 +185,12 @@ sub call_with_best_perl {
     @version = get_version($DEFAULT_VERSION, q{}) if ! @version;
 
     if ($version[0] == 6) {
-        system qq{$ENV{SHELL} -c '$PERL6 $source_file @ARGV'};
+        if ($config{debug}) {
+            system qq{$ENV{SHELL} -c '$PERL6-debug-m $source_file @ARGV'};
+        }
+        else {
+            system qq{$ENV{SHELL} -c '$PERL6 $source_file @ARGV'};
+        }
     }
 
     # Otherwise, find perlbrew version that best satisfies the requirement...
