@@ -27,7 +27,9 @@ endif
 if maparg('N','n') == ""
     nnoremap  <unique><silent> N  N:call HLNext()<CR>
 endif
-
+if maparg('\','n') ==""
+    nnoremap <unique>	       \  :call HLNextOff()<CR>:noh<CR>
+endif
 " Default highlighting for next match...
 highlight default HLNext ctermfg=white ctermbg=red
 
