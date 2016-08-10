@@ -3,6 +3,22 @@
 " Last change:  Sun May 18 11:40:10 EST 2014
 " Maintainer:   Damian Conway
 " License:  This file is placed in the public domain.
+"
+" trackperlvars (tpv) provides two main features:
+"
+" 1.  When you place a cursor over a perl variable, tpv will
+"     highlight the variable, and all other instances of that variable.
+"
+"     While highlighted; three functions are available:
+"     1. "gd" or "goto definition" will bounce you to where the variable is defined.
+"     2. "cv" or "change variable" will rename all found instances of the
+"        variable, scope is either by visual selection, or globally.
+"     3. "*" will search for the current variable.
+"
+" 2.  If you highlight a perl punctuation var ($_, @_ or $/ for example), 
+"     then you will get extra info telling you about its' primary purpose.
+"
+" "tt" or "toggle tracking" will enable/disable tpv.
 
 " If already loaded, we're done...
 if exists("loaded_trackperlvars")
