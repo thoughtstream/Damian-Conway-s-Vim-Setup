@@ -2,6 +2,23 @@
 " Last change:  Thu Dec 19 16:08:21 EST 2013
 " Maintainer:	Damian Conway
 " License:	This file is placed in the public domain.
+"
+" After highlighting search results, make the search result 
+" that is found at the cursor a different color.  Using N or n
+" to jump forward or backward will update the result at the 
+" cursor to be newly highlighted.
+"
+" Highlighting the next search result is done via the HLNext ()
+" function.  In order to remove search highlighting it is
+" recommended to use a mapping similar to the following:
+"
+" nmap <silent> <BS> :call HLNextOff() <BAR> :nohlsearch<CR>
+"
+" If using documap.vim:
+" Nmap <silent> <BS> [Cancel highlighting] :call HLNextOff() <BAR> :nohlsearch<CR> 
+"
+" If using documap.vim and either visualguide.vim or visualsmartis.vim
+" Nmap <silent> <BS> [Cancel highlighting] :call HLNextOff() <BAR> :nohlsearch <BAR> :call VG_Show_CursorColumn('off')<CR> 
 
 " If already loaded, we're done...
 if exists("loaded_HLNext")
