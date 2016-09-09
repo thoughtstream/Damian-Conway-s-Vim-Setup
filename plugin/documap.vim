@@ -2,6 +2,16 @@
 " Last change:  Tue Oct 25 12:06:52 EST 2011
 " Maintainer:	Damian Conway
 " License:	This file is placed in the public domain.
+"
+" documap.vim provides a self-documenting map function.
+" New mappings are defined via Nmap ().  See [ Interface ] for more detail.
+"
+" To view existing mappings use ";h".  This will list all mappings created
+" with Nmap, and will display the provided documentation used when Nmap was
+" called.
+"
+" Currently only nmap is supported out of box, but vmap can be added by
+" calling Define () directly
 
 " If already loaded, we're done...
 if exists("loaded_documap")

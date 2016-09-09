@@ -3,6 +3,22 @@
 " Last change:  Sun May 18 11:40:10 EST 2014
 " Maintainer:   Damian Conway
 " License:  This file is placed in the public domain.
+"
+" trackperlvars (tpv) provides two main features:
+"
+" 1.  When you place a cursor over a perl variable, tpv will
+"     highlight the variable, and all other instances of that variable.
+"
+"     While highlighted; three functions are available:
+"     1. "gd" or "goto definition" will bounce you to where the variable is defined.
+"     2. "cv" or "change variable" will rename all found instances of the
+"        variable, scope is either by visual selection, or globally.
+"     3. "*" will search for the current variable.
+"
+" 2.  If you highlight a perl punctuation var ($_, @_ or $/ for example), 
+"     then you will get extra info telling you about its primary purpose.
+"
+" "tt" or "toggle tracking" will enable/disable tpv.
 
 " If already loaded, we're done...
 if exists("loaded_trackperlvars")
@@ -200,11 +216,11 @@ let s:ORDINAL = { '1':'st', '2':'nd', '3':'rd' }
 
 let s:MATCH_VAR_PAT = join([
 \     '\(',
-\         '[@%]\zs[$]',
+\         '[@%]\zs[$][.!*?^:]\?',
 \     '\|',
-\         '[@%]',
+\         '[@%][.!*?^:]\?',
 \     '\|',
-\         '[$][#]\?',
+\         '[$][#.!*?^:]\?',
 \     '\)',
 \     '\s*',
 \     '\(',
@@ -305,7 +321,7 @@ function! TPV_track_perl_var ()
         let s:displaying_message = 1
 
     " Special highlighting for undeclared variables...
-    elseif varname !~ ':' && !search('^[^#]*\%(my\|our\|state\).*'.sigil.varname.'\%(\_$\|\W\@=\)', 'Wbnc')
+    elseif varname !~ ':' && !search('^[^#]*\%(my\|our\|state\|sub\s\+\w\+\s\+(\).*'.sigil.varname.'\%(\_$\|\W\@=\)', 'Wbnc')
         highlight!      TRACK_PERL_VAR_ACTIVE   cterm=NONE gui=NONE guifg=NONE guibg=NONE
         highlight! link TRACK_PERL_VAR_ACTIVE   TRACK_PERL_VAR_UNDECLARED
         echohl TRACK_PERL_VAR_UNDECLARED
@@ -329,7 +345,7 @@ function! TPV_track_perl_var ()
 
         " Does this var have a descriptive comment???
         let new_message = 0
-        let decl_pat = '\C^[^#]*\%(my\|our\|state\)\%(\s*([^)]*\|\s*\)\zs'.sigil.varname.'\%(\_$\|\W\)\@='
+        let decl_pat = '\C^[^#]*\%(my\|our\|state\|sub\s\+\w\+\s\+(\@=\)\%(\s*([^)]*\|\s*\)\zs'.sigil.varname.'\%(\_$\|\W\)\@='
         let decl_line_num = search(decl_pat, 'Wcbn')
         if decl_line_num   " Ugly nested if's to minimize computation per cursor move...
             let decl_line = getline(decl_line_num)
@@ -460,7 +476,7 @@ function! TPV_locate_perl_var_decl ()
     endif
 
     " Otherwise search backwards for the declaration and report the outcome...
-    let decl_pat = '\C^[^#]*\%(my\|our\|state\)\%(\s*([^)]*\|\s*\)\zs'.sigil.varname.'\%(\_$\|\W\)\@='
+    let decl_pat = '\C^[^#]*\%(my\|our\|state\|sub\s\+\w\+\s\+(\@=\)\%(\s*([^)]*\|\s*\)\zs'.sigil.varname.'\%(\_$\|\W\)\@='
     if !search(decl_pat, 'Wbs')
         echohl WarningMsg
         echo "Can't find a declaration before this point"

@@ -2,6 +2,25 @@
 " Last change:  Thu Dec 19 16:08:21 EST 2013
 " Maintainer:	Damian Conway
 " License:	This file is placed in the public domain.
+"
+" After highlighting search results, shows the search result 
+" that is found at the cursor in a different color.  Using N or n
+" to jump forward or backward will update the result at the 
+" cursor to be newly highlighted.
+"
+" Highlighting the next search result is done via the HLNext()
+" function.  In order to remove search highlighting it is
+" recommended to use a mapping similar to the following:
+"
+" nmap <silent> <BS> :call HLNextOff() <BAR> :nohlsearch<CR>
+"
+" If using documap.vim:
+"
+" Nmap <silent> <BS> [Cancel highlighting] :call HLNextOff() <BAR> :nohlsearch<CR> 
+"
+" If using documap.vim and either visualguide.vim or visualsmartia.vim
+"
+" Nmap <silent> <BS> [Cancel highlighting] :call HLNextOff() <BAR> :nohlsearch <BAR> :call VG_Show_CursorColumn('off')<CR> 
 
 " If already loaded, we're done...
 if exists("loaded_HLNext")
@@ -34,9 +53,6 @@ highlight default HLNext ctermfg=white ctermbg=red
 
 "====[ IMPLEMENTATION ]=======================================
 
-" Are we already highlighting next matches???
-let g:HLNext_matchnum = 0
-
 " Clear previous highlighting and set up new highlighting...
 function! HLNext ()
     " Remove the previous highlighting, if any...
@@ -44,14 +60,14 @@ function! HLNext ()
 
     " Add the new highlighting...
     let target_pat = '\c\%#\%('.@/.'\)'
-    let g:HLNext_matchnum = matchadd('HLNext', target_pat)
+    let w:HLNext_matchnum = matchadd('HLNext', target_pat)
 endfunction
 
 " Clear previous highlighting (if any)...
 function! HLNextOff ()
-    if (g:HLNext_matchnum > 0)
-        call matchdelete(g:HLNext_matchnum)
-        let g:HLNext_matchnum = 0
+    if (exists('w:HLNext_matchnum') && w:HLNext_matchnum > 0)
+        call matchdelete(w:HLNext_matchnum)
+        unlet! w:HLNext_matchnum
     endif
 endfunction
 

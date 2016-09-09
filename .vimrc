@@ -1,3 +1,13 @@
+"=====[ Convert to Unicode defaults ]===============================
+
+setglobal termencoding=utf-8 fileencodings=
+scriptencoding utf-8
+
+autocmd BufNewFile,BufRead  *   if &modifiable 
+autocmd BufNewFile,BufRead  *       set encoding=utf-8
+autocmd BufNewFile,BufRead  *   endif
+
+
 "====[ Ensure autodoc'd plugins are supported ]===========
 
 runtime plugin/_autodoc.vim
@@ -7,9 +17,8 @@ runtime plugin/_autodoc.vim
 
 filetype plugin indent on
 
-" .t bilong perl!!!
-
 autocmd BufNewFile,BufRead  *.t                     setfiletype perl
+autocmd BufNewFile,BufRead  *.itn                   setfiletype itn
 
 
 "=====[ Comments are important ]==================
@@ -42,6 +51,13 @@ Nmap tt  [Edit temporary files] :next ~/tmp/temporary_file
 "=====[ Edit files in local bin directory ]========
 
 Nmap ;b  [Edit ~/bin/...]  :next ~/bin/
+
+
+"=====[ Some of Vim's defaults are just annoying ]============
+
+" :read and :write shouldn't set #
+set cpo-=aA
+
 
 
 "====[ Go back to alternate file (but retain other g<whatever> mappings)]====
@@ -155,7 +171,9 @@ vmap <expr> M                                     ':s/' . @/ . '//g<LEFT><LEFT>'
 
 " Make naughty characters visible...
 " (uBB is right double angle, uB7 is middle dot)
-exec "set lcs=tab:\uBB\uBB,trail:\uB7,nbsp:~"
+set lcs=tab:‚áí¬∑,trail:‚ê£,nbsp:~"
+highlight InvisibleSpaces ctermfg=Black ctermbg=Black
+call matchadd('InvisibleSpaces', '\s\+\%#', 100)
 
 augroup VisibleNaughtiness
     autocmd!
@@ -428,21 +446,7 @@ augroup END
 "=====[ Configure % key (via matchit plugin) ]==============================
 
 " Match angle brackets...
-set matchpairs+=<:>,´:ª
-
-" Match double-angles, XML tags and Perl keywords...
-let TO = ':'
-let OR = ','
-let b:match_words =
-\
-\                          '<<' .TO. '>>'
-\
-\.OR.     '<\@<=\(\w\+\)[^>]*>' .TO. '<\@<=/\1>'
-\
-\.OR. '\<if\>' .TO. '\<elsif\>' .TO. '\<else\>'
-
-" Engage debugging mode to overcome bug in matchpairs matching...
-let b:match_debug = 1
+set matchpairs+=<:>,?:?
 
 
 "=====[ Miscellaneous features (mainly options) ]=====================
@@ -557,7 +561,7 @@ nmap $$ $<i}``
 " =====[ Perl programming support ]===========================
 
 " Execute Perl file...
-nmap <silent> W  :!clear;echo;echo;(script -q ~/tmp/script_$$ polyperl %; if (-s ~/tmp/script_$$) then; echo; echo; echo; getraw; endif; rm -f ~/tmp/script_$$ )<CR><CR>
+nmap <silent> W  :!clear;echo;echo;(script -q ~/tmp/script_$$ polyperl %; if (-s ~/tmp/script_$$) then; alert; echo; echo; echo; getraw; endif; rm -f ~/tmp/script_$$ )<CR><CR>
 
 " Execute Perl file (output to pager)...
 nmap E :!polyperl -m %<CR>
@@ -652,7 +656,7 @@ set iskeyword-=,
 
 " Insert common Perl code structures...
 
-iab udd use Data::Dumper 'Dumper';<CR>warn Dumper [];<ESC>hi
+iab udd use Data::Dump 'ddx';<CR>ddx;<LEFT>
 iab udv use Dumpvalue;<CR>Dumpvalue->new->dumpValues();<ESC>hi
 iab uds use Data::Show;<CR>show
 iab ubm use Benchmark qw( cmpthese );<CR><CR>cmpthese -10, {<CR>};<ESC>O
@@ -775,12 +779,12 @@ function! RunPerlTests ()
 endfunction
 
 
-"=====[ Auto-setup for Perl scripts and modules ]===========
+"=====[ Auto-setup for new files ]===========
 
 augroup Perl_Setup
     autocmd!
-    autocmd BufNewFile *.p[lm] 0r !file_template <afile>
-    autocmd BufNewFile *.p[lm] /^[ \t]*[#].*implementation[ \t]\+here/
+    autocmd BufNewFile   *  0r !vim_file_template <afile>
+    autocmd BufNewFile   *  :call search('^[ \t]*[#].*implementation[ \t]\+here')
 augroup END
 
 
@@ -816,8 +820,8 @@ let EOL      = '\s*$'
                 " =====    =====      ===============================    ============
 call SmartcomAdd( '<<',    ANYTHING,  '>>',                              {'restore':1} )
 call SmartcomAdd( '<<',    '>>',      "\<CR>\<ESC>O\<TAB>"                             )
-call SmartcomAdd( '´',     ANYTHING,  'ª',                               {'restore':1} )
-call SmartcomAdd( '´',     'ª',       "\<CR>\<ESC>O\<TAB>"                             )
+call SmartcomAdd( '?',     ANYTHING,  '?',                               {'restore':1} )
+call SmartcomAdd( '?',     '?',       "\<CR>\<ESC>O\<TAB>"                             )
 call SmartcomAdd( '{{',    ANYTHING,  '}}',                              {'restore':1} )
 call SmartcomAdd( '{{',    '}}',      NOTHING,                                         )
 call SmartcomAdd( 'qr{',   ANYTHING,  '}xms',                            {'restore':1} )
@@ -828,6 +832,22 @@ call SmartcomAdd( 's{',    ANYTHING,  '}{}xms',                          {'resto
 call SmartcomAdd( 's{',    '}{}xms',  "\<CR>\<C-D>\<ESC>O\<C-D>\<TAB>",                )
 call SmartcomAdd( '\*\*',  ANYTHING,  '**',                              {'restore':1} )
 call SmartcomAdd( '\*\*',  '\*\*',    NOTHING,                                         )
+
+call SmartcomAdd( '''.\{-}''''',    NOTHING,   "\<BS>\<BS>\<ESC>?'\<CR>r\"a",     {'restore':1} )
+call SmartcomAdd( '''.\{-}''''',    '.',       "\<BS>\<BS>\<ESC>?'\<CR>r\"a",     {'restore':-1} )
+call SmartcomAdd( '''.\{-}''''',    '..',      "\<BS>\<BS>\<ESC>?'\<CR>r\"a",     {'restore':-2} )
+
+call SmartcomAdd( 'q\@<!q{.\{-}''''',    NOTHING,   "\<BS>\<BS>\<ESC>?q{\<CR>sqq",     {'restore':1} )
+call SmartcomAdd( 'q\@<!q{.\{-}''''',    '.',       "\<BS>\<BS>\<ESC>?q{\<CR>sqq",     {'restore':-1} )
+call SmartcomAdd( 'q\@<!q{.\{-}''''',    '..',      "\<BS>\<BS>\<ESC>?q{\<CR>sqq",     {'restore':-1} )
+
+call SmartcomAdd( '".\{-}''''',    NOTHING,   "\<BS>\<BS>\<ESC>?\"\<CR>r'a",     {'restore':1} )
+call SmartcomAdd( '".\{-}''''',    '.',       "\<BS>\<BS>\<ESC>?\"\<CR>r'a",     {'restore':-1} )
+call SmartcomAdd( '".\{-}''''',    '..',      "\<BS>\<BS>\<ESC>?\"\<CR>r'a",     {'restore':-2} )
+
+call SmartcomAdd( 'qq{.\{-}''''',    NOTHING,   "\<BS>\<BS>\<ESC>?qq{\<CR>xa",     {'restore':1} )
+call SmartcomAdd( 'qq{.\{-}''''',    '.',       "\<BS>\<BS>\<ESC>?qq{\<CR>xa",     {'restore':-1} )
+call SmartcomAdd( 'qq{.\{-}''''',    '..',      "\<BS>\<BS>\<ESC>?qq{\<CR>xa",     {'restore':-2} )
 
 " Handle single : correctly...
 call SmartcomAdd( '^:\|[^:]:',  EOL,  "\<TAB>" )
@@ -840,13 +860,13 @@ call SmartcomAdd( '^:\|[^:]:',  EOL,  "\<TAB>" )
 
 "After an alignable, align...
 function! AlignOnPat (pat)
-    return "\<ESC>:call EQAS_Align('nmap',{'pattern':'" . a:pat . "'})\<CR>/" . a:pat . "/e\<CR>:nohlsearch\<CR>a\<SPACE>"
+    return "\<ESC>:call EQAS_Align('nmap',{'pattern':'" . a:pat . "'})\<CR>A"
 endfunction
                 " Left         Right        Insert
                 " ==========   =====        =============================
-call SmartcomAdd( '=',         ANYTHING,    "\<ESC>:call EQAS_Align('nmap')\<CR>/=/\<CR>:nohlsearch\<CR>a\<SPACE>")
-call SmartcomAdd( '=>',        ANYTHING,    AlignOnPat('=>'))
-call SmartcomAdd( '\s#',       ANYTHING,    AlignOnPat('\%(\S\s*\)\@<= #'))
+call SmartcomAdd( '=',         ANYTHING,    "\<ESC>:call EQAS_Align('nmap')\<CR>A")
+call SmartcomAdd( '=>',        ANYTHING,    AlignOnPat('=>') )
+call SmartcomAdd( '\s#',       ANYTHING,    AlignOnPat('\%(\S\s*\)\@<= #') )
 call SmartcomAdd( '[''"]\s*:', ANYTHING,    AlignOnPat(':'),                   {'filetype':'vim'} )
 call SmartcomAdd( ':',         ANYTHING,    "\<TAB>",                          {'filetype':'vim'} )
 
@@ -861,17 +881,45 @@ call SmartcomAdd( '^\s*if',    EOL,    " ___ \n___\n\<C-D>endif\n___",         {
 call SmartcomAdd( '^\s*while', EOL,    " ___ \n___\n\<C-D>endwhile\n___",      {'filetype':'vim'} )
 call SmartcomAdd( '^\s*try',   EOL,    "\n\t___\n\<C-D>catch\n\t___\n\<C-D>endtry\n___", {'filetype':'vim'} )
 
+                " Left         Right   Insert                                  Where
+                " ==========   =====   =============================           ===================
 " Perl keywords...
 call SmartcomAdd( '^\s*for',   EOL,    " my $___ (___) {\n___\n}\n___",        {'filetype':'perl'} )
 call SmartcomAdd( '^\s*if',    EOL,    " (___) {\n___\n}\n___",                {'filetype':'perl'} )
 call SmartcomAdd( '^\s*while', EOL,    " (___) {\n___\n}\n___",                {'filetype':'perl'} )
 call SmartcomAdd( '^\s*given', EOL,    " (___) {\n___\n}\n___",                {'filetype':'perl'} )
 call SmartcomAdd( '^\s*when',  EOL,    " (___) {\n___\n}\n___",                {'filetype':'perl'} )
+call SmartcomAdd( '^\s*sub',   EOL,    " ___ (___) {\n___\n}\n___",            {'filetype':'perl'} )
 
 " Complete Perl module loads with the names of Perl modules...
 call SmartcomAddAction( '^\s*use\s\+\k\+', "",
 \                       'set complete=k~/.vim/perlmodules|set iskeyword+=:'
 \)
+
+" .itn itinerary files...
+let s:flight_template = "\t___\nOn: \t___\nFrom:\t___\nTo: \t___\nDepart:\t___\nDTerm:\t___\nArrive:\t___\nATerm:\t___\nLength:\t___\nClass:\t___\nSeat:\t___\nBRef:\t___\nTrans:\t___\n"
+let s:hotel_template = "\t___\nAddr:\t___\nPhone:\t___\nZone:\t___\nRate:\t___\nConfNo:\t___\n\nName:\t___\nEmail:\t___\nPhone:\t___\n"
+let s:event_template = "\t___\nTime:\t___\nVenue:\t___\n"
+
+                " Left             Right  Insert                  Where
+                " ==========       =====  =====================   ===================
+
+call SmartcomAdd( '^\s*Date:',     EOL,   "\t___\nSumm:\t___\n",  {'filetype':'itn'} )
+
+call SmartcomAdd( '^\s*Flight:',   EOL,   s:flight_template,      {'filetype':'itn'} )
+call SmartcomAdd( '^\s*Bus:',      EOL,   s:flight_template,      {'filetype':'itn'} )
+call SmartcomAdd( '^\s*Train:',    EOL,   s:flight_template,      {'filetype':'itn'} )
+
+call SmartcomAdd( '^\s*Hotel:',    EOL,   s:hotel_template,       {'filetype':'itn'} )
+
+call SmartcomAdd( '^\s*Event:',    EOL ,  s:event_template,       {'filetype':'itn'} )
+call SmartcomAdd( '^\s*Keynote:',  EOL ,  s:event_template,       {'filetype':'itn'} )
+call SmartcomAdd( '^\s*Talk:',     EOL ,  s:event_template,       {'filetype':'itn'} )
+call SmartcomAdd( '^\s*Course:',   EOL ,  s:event_template,       {'filetype':'itn'} )
+
+"=====[ Itinerary generation ]===========
+
+autocmd BufNewFile,BufRead  *.itn  nnoremap zd !!gen_itinerary_dates<CR>
 
 
 "=====[ General programming support ]===================================
@@ -879,7 +927,7 @@ call SmartcomAddAction( '^\s*use\s\+\k\+', "",
 " Insert various shebang lines...
 iab hbc #! /bin/csh
 iab hbs #! /bin/sh
-iab hbp #! /usr/bin/env polyperl<CR>use 5.014; use warnings; use autodie;<CR>
+iab hbp #! /usr/bin/env polyperl<CR>use 5.020;<CR>use warnings;<CR>use experimentals;<CR>
 iab hb6 #! /usr/bin/env perl6<CR>use v6;
 
 
@@ -923,31 +971,52 @@ cmap <expr> hh CommandExpandAtCol1('hh','helpg ')
 
 "=====[ Cut and paste from MacOSX clipboard ]====================
 
-" Paste carefully in Normal mode...
-nmap <silent> <C-P> :set paste<CR>
-                   \:let b:prevlen = len(getline(0,'$'))<CR>
-                   \!!pbtranspaste<CR>
-                   \:set nopaste<CR>
-                   \:set fileformat=unix<CR>
-                   \mv
-                   \:exec 'normal ' . (len(getline(0,'$')) - b:prevlen) . 'j'<CR>
-                   \V`v
+" When in Normal mode, paste over the current line...
+nmap <silent> <C-P> 0d$:call NTransPaste()<CR>
 
-" When in Visual mode, paste over the selected region...
-vmap <silent> <C-P> x:call TransPaste(visualmode())<CR>
-
-function! TransPaste(type)
+function! NTransPaste()
     " Remember the last yanked text...
     let reg_save = @@
 
     " Grab the MacOSX clipboard contents via a shell command...
     let clipboard = system("pbtranspaste")
 
+    if clipboard =~ "\<C-K>"
+        let clipboard = substitute(clipboard,"\<C-M>","",  'g')
+        let clipboard = substitute(clipboard,"\<C-K>","\n",'g')
+    else
+        let clipboard = substitute(clipboard,"\<C-M>","\n",'g')
+    endif
+
+    " Put them in the yank buffer...
+    call setreg('@', clipboard, 'V')
+
+    " Paste and visually select them...
+    silent exe "normal! P"
+    silent exe "normal! V".len(substitute(clipboard,'[^\n]','','g'))."jO"
+
+    " Restore the previous yanked text...
+    let @@ = reg_save
+endfunction
+
+" When in Visual mode, paste over the selected region...
+vmap <silent> <C-P> x:call VTransPaste(visualmode())<CR>
+
+function! VTransPaste(type)
+    " Remember the last yanked text...
+    let reg_save = @@
+
+    " Grab the MacOSX clipboard contents via a shell command...
+    let clipboard = system("pbtranspaste")
+    let clipboard = substitute(clipboard,"\<C-M>","",  'g')
+    let clipboard = substitute(clipboard,"\<C-K>","\n",'g')
+
     " Put them in the yank buffer...
     call setreg('@', clipboard, a:type)
 
     " Paste them...
     silent exe "normal! P"
+    silent exe "normal! V".len(substitute(clipboard,'[^\n]','','g'))."jO"
 
     " Restore the previous yanked text...
     let @@ = reg_save
@@ -1160,8 +1229,8 @@ vmap <silent> # :call ToggleBlock()<CR>
 " Inverse highlighting for cursor...
 highlight CursorInverse   term=inverse ctermfg=black ctermbg=white
 
-" Set up highlighter at high priority (i.e. 100)
-call matchadd('CursorInverse', '\%#', 100)
+" Set up highlighter at high priority (i.e. 99)
+call matchadd('CursorInverse', '\%#', 99)
 
 " Need an invisible cursor column to make it update on every cursor move...
 " (via the visualguide.vim plugin, so as to play nice)
@@ -1319,7 +1388,7 @@ let vim_sub_pat  = '^\s*fu\%[nction!]\s\+\k\+'
 augroup FoldSub
     autocmd!
     autocmd BufEnter * nmap <silent> <expr>  zp  FS_FoldAroundTarget(perl_sub_pat,{'context':1})
-    autocmd BufEnter * nmap <silent> <expr>  za  FS_FoldAroundTarget(perl_sub_pat.'\\|^\s*#.*',{'context':0, 'folds':'invisible'})
+    autocmd BufEnter * nmap <silent> <expr>  za  FS_FoldAroundTarget(perl_sub_pat.'\zs\\|^\s*#.*',{'context':0, 'folds':'invisible'})
     autocmd BufEnter *.vim,.vimrc nmap <silent> <expr>  zp  FS_FoldAroundTarget(vim_sub_pat,{'context':1})
     autocmd BufEnter *.vim,.vimrc nmap <silent> <expr>  za  FS_FoldAroundTarget(vim_sub_pat.'\\|^\s*".*',{'context':0, 'folds':'invisible'})
     autocmd BufEnter * nmap <silent> <expr>             zv  FS_FoldAroundTarget(vim_sub_pat.'\\|^\s*".*',{'context':0, 'folds':'invisible'})
@@ -1432,6 +1501,7 @@ nmap *  :let @/ = '\<'.expand('<cword>').'\>' ==? @/ ? @/ : '\<'.expand('<cword>
 "=====[ Much smarter "edit next file" command ]=======================
 
 nmap <silent><expr>  e  g:GTF_goto_file()
+nmap <silent><expr>  q  g:GTF_goto_file('`')
 
 
 
@@ -1587,17 +1657,16 @@ function! Under_dollar_visual ()
     return maxcol . '|'
 endfunction
 
-
 "=====[ Diff against disk ]==========================================
 
 map <silent> zd :silent call DC_DiffChanges()<CR>
 
 " Change the fold marker to something more useful
 function! DC_LineNumberOnly ()
-    if v:foldstart == 1
-        return '(No difference)'
+    if v:foldstart == 1 && v:foldend == line('$')
+        return '.. ' . v:foldend . '  (No difference)'
     else
-        return 'line ' . v:foldstart . ':'
+        return '.. ' . v:foldend
     endif
 endfunction
 
@@ -1615,18 +1684,72 @@ function! DC_DiffChanges ()
     diffthis
     highlight Normal ctermfg=grey
     let initial_state = b:DC_initial_state
-    set diffopt=context:1000000,filler,foldcolumn:0
-    set fillchars=fold:\
+    set diffopt=context:2,filler,foldcolumn:0
+    set fillchars=fold:¬†
     set foldcolumn=0
     setlocal foldtext=DC_LineNumberOnly()
-    aboveleft vnew
+    set number
+
+"    aboveleft vnew
+    belowright vnew
     normal 0
     silent call setline(1, initial_state)
     diffthis
-    set diffopt=context:1000000,filler,foldcolumn:0
-    set fillchars=fold:\
+    set diffopt=context:2,filler,foldcolumn:0
+    set fillchars=fold:¬†
     set foldcolumn=0
     setlocal foldtext=DC_LineNumberOnly()
-    nmap <silent><buffer> zd :diffoff<CR>:q!<CR>:set diffopt& fillchars& foldcolumn=0<CR>:set nodiff<CR>:highlight Normal ctermfg=NONE<CR>
+    set number
+
+    nmap <silent><buffer> zd :diffoff<CR>:q!<CR>:set diffopt& fillchars& number& foldcolumn=0<CR>:set nodiff<CR>:highlight Normal ctermfg=NONE<CR>
 endfunction
 
+
+"=====[ ,, as => without delays ]===================
+
+inoremap <expr><silent>  ,  Smartcomma()
+
+function! Smartcomma ()
+    let [bufnum, lnum, col, off, curswant] = getcurpos()
+    if getline('.') =~ (',\%' . (col+off) . 'c')
+        return "\<C-H>=>"
+    else
+        return ','
+    endif
+endfunction
+
+
+"=====[ Interface with ag ]======================
+
+set grepprg=ag\ --vimgrep\ $*
+set grepformat=%f:%l:%c:%m
+
+
+"=====[ Decute startify ]================
+
+let g:startify_custom_header = []
+
+
+"=====[ Configure change-tracking ]========
+
+let g:changes_hl_lines=1
+let g:changes_verbose=0
+let g:changes_autocmd=1
+
+
+"=====[ Make netrw more instantly useful ]============
+
+let g:netrw_sort_by='time'
+let g:netrw_sort_direction='reverse'
+
+
+"=====[ Config ditto ]=============
+
+highlight Ditto ctermfg=red
+
+let g:ditto_hlgroups = ['Ditto1']
+let g:ditto_autocmd = "InsertLeave"
+
+
+let g:ditto_min_word_length = 6
+let g:ditto_min_repetitions = 2

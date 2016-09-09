@@ -1,0 +1,75 @@
+--- a/plugin/documap.vim
++++ b/plugin/documap.vim
+@@ -2,6 +2,16 @@
+ " Last change:  Tue Oct 25 12:06:52 EST 2011
+ " Maintainer:	Damian Conway
+ " License:	This file is placed in the public domain.
++"
++" documap.vim provides a self-documenting map function.
++" New mappings are defined via Nmap ().  See [ Interface ] for more detail.
++"
++" To view existing mappings use ";h".  This will list all mappings created
++" with Nmap, and will display the provided documentation used when Nmap was
++" called.
++"
++" Currently only nmap is supported out of box, but vmap can be added by
++" calling Define () directly -- break it; you bought it.
+ 
+ " If already loaded, we're done...
+ if exists("loaded_documap")
+diff --git a/plugin/hlnext.vim b/plugin/hlnext.vim
+index 58f0f93..86ab2ed 100644
+--- a/plugin/hlnext.vim
++++ b/plugin/hlnext.vim
+@@ -2,6 +2,23 @@
+ " Last change:  Thu Dec 19 16:08:21 EST 2013
+ " Maintainer:	Damian Conway
+ " License:	This file is placed in the public domain.
++"
++" After highlighting search results, make the search result 
++" that is found at the cursor a different color.  Using N or n
++" to jump forward or backward will update the result at the 
++" cursor to be newly highlighted.
++"
++" Highlighting the next search result is done via the HLNext ()
++" function.  In order to remove search highlighting it is
++" recommended to use a mapping similar to the following:
++"
++" nmap <silent> <BS> :call HLNextOff() <BAR> :nohlsearch<CR>
++"
++" If using documap.vim:
++" Nmap <silent> <BS> [Cancel highlighting] :call HLNextOff() <BAR> :nohlsearch<CR> 
++"
++" If using documap.vim and either visualguide.vim or visualsmartis.vim
++" Nmap <silent> <BS> [Cancel highlighting] :call HLNextOff() <BAR> :nohlsearch <BAR> :call VG_Show_CursorColumn('off')<CR> 
+ 
+ " If already loaded, we're done...
+ if exists("loaded_HLNext")
+diff --git a/plugin/trackperlvars.vim b/plugin/trackperlvars.vim
+index 72715bb..2840bd7 100644
+--- a/plugin/trackperlvars.vim
++++ b/plugin/trackperlvars.vim
+@@ -3,6 +3,22 @@
+ " Last change:  Sun May 18 11:40:10 EST 2014
+ " Maintainer:   Damian Conway
+ " License:  This file is placed in the public domain.
++"
++" trackperlvars (tpv) provides two main features:
++"
++" 1.  When you place a cursor over a perl variable, tpv will
++"     highlight the variable, and all other instances of that variable.
++"
++"     While highlighted; three functions are available:
++"     1. "gd" or "goto definition" will bounce you to where the variable is defined.
++"     2. "cv" or "change variable" will rename all found instances of the
++"        variable, scope is either by visual selection, or globally.
++"     3. "*" will search for the current variable.
++"
++" 2.  If you highlight a perl punctuation var ($_, @_ or $/ for example), 
++"     then you will get extra info telling you about its' primary purpose.
++"
++" "tt" or "toggle tracking" will enable/disable tpv.
+ 
+ " If already loaded, we're done...
+ if exists("loaded_trackperlvars")
+

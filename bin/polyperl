@@ -9,14 +9,12 @@ use 5.010;
 ### It acts like regular perl eventually will: selecting the best
 ### perl semantics according to a Perl program's "use VERSION" declaration
 
-# Defaults...
 my $DEFAULT_PERL    = 'perl';
 my $DEFAULT_VERSION = '5.014';
 my $DEFAULT_APP     = $DEFAULT_PERL;
 my $PERL6           = 'perl6';
 
-# Perlbrew available versions...
-sub normalize { @_ ? sprintf("%03d%03d%03d", split /[.]/, shift) : undef }
+# Locate perlbrew available versions...
 my @raw_versions = `perlbrew list`;
 my @perlbrew_versions = sort { normalize($a) <=> normalize($b) }
                              map { m{ perl-blead\s*\((\S+)\) | perl-(\S+) }xms ? $+ : () }
@@ -39,7 +37,7 @@ while (my $arg = shift @ARGV) {
     last ARG;
 }
 
-# Paged???
+# Set up pager, if requested...
 if ($config{pause_after}) {
     $config{pager} = 1;
     $ENV{PAGER} = "$ENV{HOME}/bin/lessen";
@@ -61,17 +59,17 @@ my $is_perl5 = $config{vim_compile}
             || $shebang !~ m{ rakudo | perl6 }xms
             && $source_file =~ m{ [.] (?: p[ml] | [.] t ) (?: .vp[de] )? \Z }xms;
 
-# If it's a Perl file...
+# If it's a Perl file work out the best version of perl to execute it with...
 if ($is_perl5) {
     call_with_best_perl($source_code);
 }
 
-# If there's a shebang line, use that...
+# Otherwise, if there's a shebang line, use the program specified by that...
 elsif (length $shebang && !$config{debug}) {
     exec "$shebang $source_file @ARGV";
 }
 
-# If no idea, assume it's the default app...
+# Otherwise, assume it's the default app...
 else {
     call_with_best_perl($source_code);
 }
@@ -231,3 +229,7 @@ sub call_with_best_perl {
     }
 
 }
+
+# Normalize a X.Y.Z version number to XXXYYYZZZ...
+sub normalize { @_ ? sprintf("%03d%03d%03d", split /[.]/, shift) : undef }
+

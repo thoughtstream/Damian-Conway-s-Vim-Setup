@@ -16,7 +16,7 @@ set cpo&vim
 "=====[ Interface ]=====================================================
 
 " Remap <TAB> for smart completion on various characters...
-inoremap <silent> <TAB>   <c-r>=<SID>Complete()<CR>
+inoremap <silent> <TAB>      <c-r>=<SID>Complete()<CR>
 
 " Remap single <S-TAB> for smart completion on padding...
 " That is: search the previous line for repeated punctuation and repeat it
@@ -34,9 +34,11 @@ inoremap <silent> <RIGHT> <c-r>=<SID>RightKey()<CR>
 let s:placeholder_pat = '_\{3,}'
 let s:placeholder_count = 0
 
+" Track repeated completions that don't change anything...
+let s:prev_curr_line = ""
 
 " Complete the current line by duplicating compatible existing lines...
-
+"
 function! <SID>CompleteLine ()
     " If already completing, keep completing; otherwise, start completing...
     if pumvisible()
@@ -161,7 +163,7 @@ let s:RESTORE = {'restore':1}
 "                  Left   Right   Complete with...         Autorestore
 "                  ====   =====   ====================     ==========
 call SmartcomAdd(  '{',   s:NIL,  "}"                    , s:RESTORE   )
-call SmartcomAdd(  '{',   '}',    "\<CR>\<C-D>\<ESC>O"                 )
+call SmartcomAdd(  '{',   '}',    "\<CR>\<ESC>O"                       )
 call SmartcomAdd(  '\[',  s:NIL,  "]"                    , s:RESTORE   )
 call SmartcomAdd(  '\[',  '\]',    "\<CR>\<ESC>O\<TAB>"                )
 call SmartcomAdd(  '(',   s:NIL,  ")"                    , s:RESTORE   )
@@ -195,11 +197,26 @@ function! <SID>Complete ()
     endif
 
     " How to restore the cursor position...
-    let reversion = "\<C-O>:call setpos('.'," . string(cursorpos) . ")\<CR>"
+    let reversion      = "\<C-O>:call setpos('.'," . string(cursorpos) . ")\<CR>"
 
-    " Determine context of completion...
+    " Determine (and remember) context of completion...
     let curr_line = getline('.')
+    let prev_curr_line = s:prev_curr_line
+    let s:prev_curr_line = curr_line
     let curr_pos  = '\%' . col . 'c'
+
+    " Special case: pending placeholders, and not completable --> next placeholder
+    if s:placeholder_count && (curr_line !~ '\k'.curr_pos || curr_line == prev_curr_line)
+        let s:placeholder_count -= 1
+        if curr_line !~ '\S'
+            delete
+            return "\<ESC>/"  . s:placeholder_pat . "\<CR>cw"
+        elseif curr_line =~ '\s'.curr_pos
+            return "\<ESC>x/" . s:placeholder_pat . "\<CR>cw"
+        else
+            return "\<ESC>/"  . s:placeholder_pat . "\<CR>cw"
+        endif
+    endif
 
     " If a matching smart completion action has been specified, do it first...
     let old_complete_opt = &complete
@@ -249,12 +266,21 @@ function! <SID>Complete ()
             endif
 
             " Return the completion...
+            if restore_cursor < 0
+                let reversion .= repeat("\<LEFT>", -restore_cursor)
+            endif
             return completion . (restore_cursor ? reversion : "")
         endif
     endfor
 
-    " Otherwise, if not after an identifier, no completion; just a tab...
-    if curr_line =~ '[^:]:' . curr_pos || curr_line !~ '\k' . curr_pos
+    " Otherwise, if after a filename sequence, filename completion...
+    if curr_line =~ '\f//' . curr_pos
+        return "\<BS>\<C-X>\<C-F>"
+    elseif curr_line =~ '/\f*' . curr_pos
+        return "\<C-X>\<C-F>"
+
+    " Otherwise, if not after an identifier: just a tab...
+    elseif curr_line =~ '[^:]:' . curr_pos || curr_line !~ '\k' . curr_pos
         return s:tab
 
     " Otherwise, autocomplete with next alternative
@@ -278,7 +304,6 @@ function! <SID>RightKey ()
         return "\<RIGHT>"
     endif
 endfunction
-
 
 " Restore previous external compatibility options
 let &cpo = s:save_cpo
@@ -313,7 +338,7 @@ Predefined completions
 
         Left of        Right of         Text
         cursor          cursor        inserted
-        _______        ________       ________________________
+                ________       ________________________
         opening
         bracket        nothing        matching closing bracket
 
