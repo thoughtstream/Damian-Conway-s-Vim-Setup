@@ -28,6 +28,8 @@ let loaded_grammarian = 1
 let s:save_cpo = &cpo
 set cpo&vim
 
+" Expand to correct home directory for vim
+let $VIMHOME=expand('<sfile>:p:h:h')
 
 " Create a pattern that matches repeated words...
 let s:REPEAT_MATCHER = '\c\(\<\S\+\>\)\@>\_s\+\<\1\>'
@@ -75,17 +77,17 @@ let s:GRAMMARIAN_REPETITION_DISPLAY_ID = matchadd('GRAMMARIAN_REPETITION_DISPLAY
 
 " Is error file up-to-date???
 function! s:recompile_spelling_files ()
-    if !filereadable('/Users/damian/.vim/grammarian/errors/spell/en.latin1.add.spl')
-        exec 'mkspell /Users/damian/.vim/grammarian/errors/spell/en.latin1.add'
+    if !filereadable('$VIMHOME/grammarian/errors/spell/en.latin1.add.spl')
+        exec 'mkspell $VIMHOME/grammarian/errors/spell/en.latin1.add'
     endif
-    if !filereadable('/Users/damian/.vim/grammarian/cautions/spell/en.latin1.add.spl')
-        exec 'mkspell /Users/damian/.vim/grammarian/cautions/spell/en.latin1.add'
+    if !filereadable('$VIMHOME/grammarian/cautions/spell/en.latin1.add.spl')
+        exec 'mkspell $VIMHOME/grammarian/cautions/spell/en.latin1.add'
     endif
-    if !filereadable('/Users/damian/.vim/grammarian/errors/spell/en.utf-8.add.spl')
-        exec 'mkspell /Users/damian/.vim/grammarian/errors/spell/en.utf-8.add'
+    if !filereadable('$VIMHOME/grammarian/errors/spell/en.utf-8.add.spl')
+        exec 'mkspell $VIMHOME/grammarian/errors/spell/en.utf-8.add'
     endif
-    if !filereadable('/Users/damian/.vim/grammarian/cautions/spell/en.utf-8.add.spl')
-        exec 'mkspell /Users/damian/.vim/grammarian/cautions/spell/en.utf-8.add'
+    if !filereadable('$VIMHOME/grammarian/cautions/spell/en.utf-8.add.spl')
+        exec 'mkspell $VIMHOME/grammarian/cautions/spell/en.utf-8.add'
     endif
 endfunction
 silent call s:recompile_spelling_files()
