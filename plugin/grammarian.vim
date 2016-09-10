@@ -28,6 +28,8 @@ let loaded_grammarian = 1
 let s:save_cpo = &cpo
 set cpo&vim
 
+" Expand to correct home directory for vim
+let $VIMHOME=expand('<sfile>:p:h:h')
 
 " Create a pattern that matches repeated words...
 let s:REPEAT_MATCHER = '\c\(\<\S\+\>\)\@>\_s\+\<\1\>'
@@ -75,17 +77,17 @@ let s:GRAMMARIAN_REPETITION_DISPLAY_ID = matchadd('GRAMMARIAN_REPETITION_DISPLAY
 
 " Is error file up-to-date???
 function! s:recompile_spelling_files ()
-    if !filereadable('/Users/damian/.vim/grammarian/errors/spell/en.latin1.add.spl')
-        exec 'mkspell /Users/damian/.vim/grammarian/errors/spell/en.latin1.add'
+    if !filereadable('$VIMHOME/grammarian/errors/spell/en.latin1.add.spl')
+        exec 'mkspell! $VIMHOME/grammarian/errors/spell/en.latin1.add'
     endif
-    if !filereadable('/Users/damian/.vim/grammarian/cautions/spell/en.latin1.add.spl')
-        exec 'mkspell /Users/damian/.vim/grammarian/cautions/spell/en.latin1.add'
+    if !filereadable('$VIMHOME/grammarian/cautions/spell/en.latin1.add.spl')
+        exec 'mkspell! $VIMHOME/grammarian/cautions/spell/en.latin1.add'
     endif
-    if !filereadable('/Users/damian/.vim/grammarian/errors/spell/en.utf-8.add.spl')
-        exec 'mkspell /Users/damian/.vim/grammarian/errors/spell/en.utf-8.add'
+    if !filereadable('$VIMHOME/grammarian/errors/spell/en.utf-8.add.spl')
+        exec 'mkspell! $VIMHOME/grammarian/errors/spell/en.utf-8.add'
     endif
-    if !filereadable('/Users/damian/.vim/grammarian/cautions/spell/en.utf-8.add.spl')
-        exec 'mkspell /Users/damian/.vim/grammarian/cautions/spell/en.utf-8.add'
+    if !filereadable('$VIMHOME/grammarian/cautions/spell/en.utf-8.add.spl')
+        exec 'mkspell! $VIMHOME/grammarian/cautions/spell/en.utf-8.add'
     endif
 endfunction
 silent call s:recompile_spelling_files()
@@ -109,7 +111,7 @@ function! Grammarian_Toggle ()
         let s:grammarian_restore = {}
 
         " Clean up path for spelling
-        let &runtimepath = substitute(&runtimepath, ',/Users/damian/.vim/grammarian/\w\+','','g')
+        let &runtimepath = substitute(&runtimepath, ',$VIMHOME/grammarian/\w\+','','g')
         let &encoding = &encoding
 
         " Restore previous spelling appearance...
@@ -134,12 +136,12 @@ function! Grammarian_Toggle ()
         endif
 
         " Install error or caution data
-        let &runtimepath = substitute(&runtimepath, ',/Users/damian/.vim/grammarian/\w\+','','g')
-        let &runtimepath .= ',/Users/damian/.vim/grammarian/'.s:grammarian_query_type
+        let &runtimepath = substitute(&runtimepath, ',$VIMHOME/grammarian/\w\+','','g')
+        let &runtimepath .= ',$VIMHOME/grammarian/'.s:grammarian_query_type
         let &encoding = &encoding
 
         " Load explanations...
-        exec 'source /Users/damian/.vim/grammarian/'.s:grammarian_query_type.'/data.vim'
+        exec 'source $VIMHOME/grammarian/'.s:grammarian_query_type.'/data.vim'
 
         " Select highlighting...
         highlight! link GRAMMARIAN_OLD_SPELLBAD SpellBad
