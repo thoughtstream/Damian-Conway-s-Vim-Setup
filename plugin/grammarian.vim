@@ -77,16 +77,16 @@ let s:GRAMMARIAN_REPETITION_DISPLAY_ID = matchadd('GRAMMARIAN_REPETITION_DISPLAY
 
 " Is error file up-to-date???
 function! s:recompile_spelling_files ()
-    if !filereadable('$VIMHOME/grammarian/errors/spell/en.latin1.add.spl')
+    if !filereadable($VIMHOME.'/grammarian/errors/spell/en.latin1.add.spl')
         exec 'mkspell $VIMHOME/grammarian/errors/spell/en.latin1.add'
     endif
-    if !filereadable('$VIMHOME/grammarian/cautions/spell/en.latin1.add.spl')
+    if !filereadable($VIMHOME.'/grammarian/cautions/spell/en.latin1.add.spl')
         exec 'mkspell $VIMHOME/grammarian/cautions/spell/en.latin1.add'
     endif
-    if !filereadable('$VIMHOME/grammarian/errors/spell/en.utf-8.add.spl')
+    if !filereadable($VIMHOME.'/grammarian/errors/spell/en.utf-8.add.spl')
         exec 'mkspell $VIMHOME/grammarian/errors/spell/en.utf-8.add'
     endif
-    if !filereadable('$VIMHOME/grammarian/cautions/spell/en.utf-8.add.spl')
+    if !filereadable($VIMHOME.'/grammarian/cautions/spell/en.utf-8.add.spl')
         exec 'mkspell $VIMHOME/grammarian/cautions/spell/en.utf-8.add'
     endif
 endfunction
