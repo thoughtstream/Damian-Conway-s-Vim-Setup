@@ -783,7 +783,7 @@ endfunction
 
 augroup Perl_Setup
     autocmd!
-    autocmd BufNewFile   *  0r !vim_file_template <afile>
+    autocmd BufNewFile   *  0r !file_template <afile>
     autocmd BufNewFile   *  :call search('^[ \t]*[#].*implementation[ \t]\+here')
 augroup END
 
