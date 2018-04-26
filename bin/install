@@ -88,13 +88,13 @@ sub install {
          return
             if !$f
             && !prompt(-yn1r, -default=>'y',
-                       "A version of $from is already installed in $destdir.\nReplace it? [y]:"
+                       "A version of $from is already installed in\n$destdir.\nReplace it? [y]:"
                       );
          say 'Replacing it.';
          system("/bin/rm -f $to");
       }
       else {
-         print "This version of $from is already installed in $destdir.\n";
+         print "This version of $from is already installed in\n$destdir.\n";
          return;
       }
    }

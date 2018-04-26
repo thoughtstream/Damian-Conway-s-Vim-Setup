@@ -16,7 +16,7 @@ set cpo&vim
 "##                                                  ##
 "##  Usage:                                          ##
 "##                                                  ##
-"##      vnoremap <silent><expr>  c  VTC_select()    ##
+"##      xnoremap <silent><expr>  c  VTC_select()    ##
 "##                                                  ##
 "##  (or whatever trigger character you prefer)      ##
 "##                                                  ##
@@ -99,7 +99,6 @@ function! VTC_select ()
     \    . 'o'
     \    . bot_line . 'G'
     \    . right_col . '|'
-    \    . 'o'
     \    . resetlazyredraw
 
 endfunction
@@ -171,7 +170,7 @@ function! VTC_extend ()
     \    . 'o'
     \    . new_bot_line . 'G'
     \    . right_col    . '|'
-    \    . 'o'
+
 endfunction
 
 

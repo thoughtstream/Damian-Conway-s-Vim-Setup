@@ -10,7 +10,7 @@
 " with Nmap, and will display the provided documentation used when Nmap was
 " called.
 "
-" Currently only nmap is supported out of box, but vmap can be added by
+" Currently only nmap is supported out of box, but xmap can be added by
 " calling Define () directly
 
 " If already loaded, we're done...

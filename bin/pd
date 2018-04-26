@@ -7,17 +7,19 @@ use experimental 'smartmatch';
 my $SINGLE_PAGE = `tput lines`;
 
 my @CANDIDATES  = (
-    'perldoc -f',
-    'perldoc',
-    'metapd',
-    'perldoc -q',
-    'man',
+    "perldoc -f @ARGV ",
+    "perldoc -v @ARGV ",
+    "perldoc    @ARGV ",
+    "metapd     @ARGV ",
+    "perldoc -q @ARGV ",
+    "man        @ARGV ",
 );
 
-for my $command (@CANDIDATES) {
-    given (qx{ $command @ARGV 2>/dev/null }) {
-        when (/.*: nothing appropriate$/) { page( "Nothing found for '@ARGV'"); }
-        when (/\S/)                       { page( $_ );                         }
+@ARGV = map {qq{'$_'}} @ARGV;
+for my $command (@CANDIDATES, q{}) {
+    given (qx{ $command 2>/dev/null }) {
+        when (/.*: nothing appropriate$/) { }
+        when (/\S/)                       { page( $_ ); }
     }
 }
 

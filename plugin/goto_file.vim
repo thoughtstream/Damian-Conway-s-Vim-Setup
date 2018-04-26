@@ -2,6 +2,10 @@
 " Last change:  Sat Jul 12 18:52:27 PDT 2014
 " Maintainer:   Damian Conway
 " License:  This file is placed in the public domain.
+"
+" TODO: Add fuzzy matching as well:
+"       When no matches, try fuzzy lookup instead
+"       Or maybe add a CTRL sequence to invoke fuzzy match?
 
 " If already loaded, we're done...
 if exists("loaded_GTF")
@@ -242,6 +246,7 @@ let &cpo = s:save_cpo
 
 " Overcome inconsistent getchar() behaviour...
 function! s:active_getchar ()
+
     " Get a character, ignoring annoying timeouts...
     let char = 0
     while !char
@@ -250,7 +255,7 @@ function! s:active_getchar ()
     let char = getchar(0)
 
     " Translate <DELETE>'s...
-    if char == 128
+    if char == 128 || char == "\<BS>"
         return "\<BS>"
 
     " Don't translate specials...

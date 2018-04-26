@@ -1,5 +1,4 @@
 " Vim global plugin for restricting colon commands to visual blocks
-" Last change:  blockwise
 " Maintainer:	Damian Conway
 " License:	This file is placed in the public domain.
 
@@ -16,7 +15,18 @@ set cpo&vim
 
 "=====[ Interface ]===================
 
-vmap  B  :Blockwise<SPACE>
+if !exists('g:Blockwise_selector')
+    let g:Blockwise_selector = 'B'
+endif
+if strlen(g:Blockwise_selector)
+    exec 'xnoremap  ' . g:Blockwise_selector . ' :Blockwise<SPACE>'
+endif
+
+if exists('g:Blockwise_autoselect')
+    if g:Blockwise_autoselect
+        xmap <expr> : VBCautoselect()
+    endif
+endif
 
 command! -range -nargs=+ -com=command   Blockwise    silent call VBCexec(<q-args>)
 command! -range -nargs=* -bang          SortByBlock  silent call VBCsort('<bang>', <q-args>)
@@ -25,6 +35,13 @@ command! -range -nargs=* -bang          SortByBlock  silent call VBCsort('<bang>
 "=====[ Implementation ]===================
 
 function! VBCexec(cmd) range
+    " Just execute as normal in visual line mode...
+    if visualmode() ==# "V"
+        exec '''<,''>' . a:cmd
+        normal gv
+        return
+    endif
+
     " Remember the length of the buffer...
     let orig_buflen = line('$')
 
@@ -32,22 +49,34 @@ function! VBCexec(cmd) range
     let [buf_left,  line_left,  col_left,  offset_left ] = getpos("'<")
     let [buf_right, line_right, col_right, offset_right] = getpos("'>")
 
-    let lines_left  = getline(line_left, line_right)
-    let lines_right = copy(lines_left)
+    " Split lines into columns around selected block...
+    if visualmode() == "\<C-V>"
+        let lines_left   = getline(line_left, line_right)
+        let lines_middle = copy(lines_left)
+        let lines_right  = copy(lines_left)
 
-    " Keep the before and aft...
-    for n in range(len(lines_left))
-        let lines_left[n]  = col_left > 1 ? lines_left[n][0 : col_left-2] : ""
-        let lines_right[n] = lines_right[n][col_right : ]
-    endfor
+        for n in range(len(lines_left))
+            let lines_left[n]   = col_left > 1 ? lines_left[n][0 : col_left-2] : ""
+            let lines_middle[n] = lines_middle[n][col_left-1 : col_right-1]
+            let lines_right[n]  = lines_right[n][col_right : ]
+        endfor
 
-    " Work around a mysterious bug!
-    let tmp = string(lines_left).string(lines_right) 
+    " Split off unselected ends of first and last line...
+    else
+        let lines_middle = getline(line_left, line_right)
+        let line_maxidx  = len(lines_middle)-1
+        let lines_left   = repeat([''], line_maxidx+1)
+        let lines_right  = repeat([''], line_maxidx+1)
 
-    " Remove the before and aft...
-    if visualmode() ==# 'v'
-        exec '''<,''>s/\%<'. col_left .'v.\|\%>'. col_right .'v.//g'
+        let lines_left[0]             = col_left > 1 ? lines_middle[0][0 : col_left-2] : ""
+        let lines_right[line_maxidx]  = lines_middle[line_maxidx][col_right : ]
+
+        let lines_middle[line_maxidx] = lines_middle[line_maxidx][0 : col_right-1 ]
+        let lines_middle[0]           = lines_middle[0][col_left-1 : ]
     endif
+
+    " Remove the before and aft in visual block mode...
+    call setline(line_left, lines_middle)
 
     " Execute the commands...
     exec '''<,''>' . a:cmd
@@ -96,6 +125,14 @@ function! VBCsort(bang, options) range
     " Restore the selection...
     normal gv
 
+endfunction
+
+function! VBCautoselect ()
+    if mode() ==# 'V'
+        return ':'
+    else
+        return ':Blockwise '
+    endif
 endfunction
 
 

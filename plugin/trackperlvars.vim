@@ -4,9 +4,9 @@
 " Maintainer:   Damian Conway
 " License:  This file is placed in the public domain.
 "
-" trackperlvars (tpv) provides two main features:
+" trackperlvars.vim (TPV) provides two main features:
 "
-" 1.  When you place a cursor over a perl variable, tpv will
+" 1.  When you place a cursor over a perl variable, TPV will
 "     highlight the variable, and all other instances of that variable.
 "
 "     While highlighted; three functions are available:
@@ -15,10 +15,10 @@
 "        variable, scope is either by visual selection, or globally.
 "     3. "*" will search for the current variable.
 "
-" 2.  If you highlight a perl punctuation var ($_, @_ or $/ for example), 
+" 2.  If you highlight a perl punctuation var ($_, @_ or $/ for example),
 "     then you will get extra info telling you about its primary purpose.
 "
-" "tt" or "toggle tracking" will enable/disable tpv.
+" "tt" or "toggle tracking" will enable/disable TPV.
 
 " If already loaded, we're done...
 if exists("loaded_trackperlvars")
@@ -61,8 +61,8 @@ function! TPV__setup ()
         nmap <special> <buffer><silent> *   :let @/ = TPV_locate_perl_var()<CR>
 
         " cv --> change variable...
-        nmap <special> <buffer>         cv  :call TPV_rename_perl_var('normal')<CR>
-        vmap <special> <buffer>         cv  :call TPV_rename_perl_var('visual')<CR>gv
+        nmap <silent> <special> <buffer>         cv  :silent call TPV_rename_perl_var('normal')<CR>
+        xmap <silent> <special> <buffer>         cv  :silent call TPV_rename_perl_var('visual')<CR>gv
 
         " gd --> goto definition...
         nmap <special> <buffer><silent> gd  :let @/ = TPV_locate_perl_var_decl()<CR>
@@ -103,7 +103,7 @@ endfunction
 
 "=====[ Implementation ]==========================================
 
-" Track last highlighted var for vmaps...
+" Track last highlighted var for xmaps...
 let s:prev_sigil   = ""
 let s:prev_varname = ""
 
@@ -123,16 +123,17 @@ highlight default      TRACK_PERL_VAR_BUILTIN     ctermfg=magenta              c
 highlight default link TRACK_PERL_VAR_ACTIVE      TRACK_PERL_VAR
 
 let s:PUNCT_VAR_DESC = {
+\  "$'"                     :  'String following most recent regex match',
 \  '$!'                     :  'Status from most recent system call (including I/O)',
 \  '$"'                     :  'List separator for array interpolation',
 \  '$#'                     :  'Output number format [deprecated: use printf() instead]',
 \  '$$'                     :  'Process ID',
 \  '$%'                     :  'Page number of the current output page',
 \  '$&'                     :  'Most recent regex match string',
-\  "$'"                     :  'String following most recent regex match',
 \  '$('                     :  'Real group ID of the current process',
 \  '$)'                     :  'Effective group ID of the current process',
 \  '$*'                     :  'Regex multiline matching flag [removed: use /m instead]',
+\  '$+'                     :  'Final capture group of most recent regex match',
 \  '$,'                     :  'Output field separator for print() and say()',
 \  '$-'                     :  'Number of lines remaining in current output page',
 \  '$.'                     :  'Line number of last input line',
@@ -147,7 +148,6 @@ let s:PUNCT_VAR_DESC = {
 \  '$7'                     :  'Seventh capture group from most recent regex match',
 \  '$8'                     :  'Eighth capture group from most recent regex match',
 \  '$9'                     :  'Ninth capture group from most recent regex match',
-\  '$+'                     :  'Final capture group of most recent regex match',
 \  '$:'                     :  'Break characters for format() lines',
 \  '$;'                     :  'Hash subscript separator for key concatenation',
 \  '$<'                     :  'Real uid of the current process',
@@ -157,7 +157,7 @@ let s:PUNCT_VAR_DESC = {
 \  '$@'                     :  'Current propagating exception',
 \  '$ARGV'                  :  'Name of file being read by readline() or <>',
 \  '$['                     :  'Array index origin [deprecated]',
-\  '$\'                     :  'Output record separator (appended to every print())',
+\  "$\\"                    :  'Output record separator (appended to every print())',
 \  '$]'                     :  'Perl interpreter version [deprecated: use $^V]',
 \  '$^'                     :  'Name of top-of-page format for selected output channel',
 \  '$^A'                    :  'Accumulator for format() lines',
@@ -180,6 +180,8 @@ let s:PUNCT_VAR_DESC = {
 \  '$^X'                    :  'Perl interpreter invocation name',
 \  '$_'                     :  'Topic variable: default argument for matches and many builtins',
 \  '$`'                     :  'String preceding most recent regex match',
+\  '$a'                     :  'Block parameter: automatically provided to sort blocks',
+\  '$b'                     :  'Block parameter: automatically provided to sort blocks',
 \  '${^CHILD_ERROR_NATIVE}' :  'Native status from most recent system call',
 \  '${^ENCODING}'           :  'Encode object for source conversion to Unicode',
 \  '${^GLOBAL_PHASE}'       :  'Current interpreter phase',
@@ -212,15 +214,148 @@ let s:PUNCT_VAR_DESC = {
 \  '@_'                     :  'Subroutine arguments',
 \}
 
+let s:ENGLISH_NAME = {
+\   '$!'  : '$OS_ERROR',
+\   '$"'  : '$LIST_SEPARATOR',
+\   "$'"  : '$POSTMATCH',
+\   "$&"  : '$MATCH',
+\   '$`'  : '$PREMATCH',
+\   '$#'  : '$OFMT',
+\   '$$'  : '$PROCESS_ID',
+\   '$%'  : '$FORMAT_PAGE_NUMBER',
+\   '$('  : '$REAL_GROUP_ID',
+\   '$)'  : '$EFFECTIVE_GROUP_ID',
+\   '$+'  : '$LAST_PAREN_MATCH',
+\   '$,'  : '$OUTPUT_FIELD_SEPARATOR',
+\   '$-'  : '$FORMAT_LINES_LEFT',
+\   '$.'  : '$INPUT_LINE_NUMBER',
+\   '$/'  : '$INPUT_RECORD_SEPARATOR',
+\   '$0'  : '$PROGRAM_NAME',
+\   '$:'  : '$FORMAT_LINE_BREAK_CHARACTERS',
+\   '$;'  : '$SUBSCRIPT_SEPARATOR',
+\   '$<'  : '$REAL_USER_ID',
+\   '$='  : '$FORMAT_LINES_PER_PAGE',
+\   '$>'  : '$EFFECTIVE_USER_ID',
+\   '$?'  : '$CHILD_ERROR',
+\   '$@'  : '$EVAL_ERROR',
+\   '$['  : '$ARRAY_BASE',
+\   "$\\" : '$OUTPUT_RECORD_SEPARATOR',
+\   '$]'  : '$OLD_PERL_VERSION',
+\   '$^'  : '$FORMAT_TOP_NAME',
+\   '$^A' : '$ACCUMULATOR',
+\   '$^C' : '$COMPILING',
+\   '$^D' : '$DEBUGGING',
+\   '$^E' : '$EXTENDED_OS_ERROR',
+\   '$^F' : '$SYSTEM_FD_MAX',
+\   '$^I' : '$INPLACE_EDIT',
+\   '$^L' : '$FORMAT_FORMFEED',
+\   '$^N' : '$LAST_SUBMATCH_RESULT',
+\   '$^O' : '$OSNAME',
+\   '$^P' : '$PERLDB',
+\   '$^R' : '$LAST_REGEXP_CODE_RESULT',
+\   '$^S' : '$EXCEPTIONS_BEING_CAUGHT',
+\   '$^T' : '$BASETIME',
+\   '$^V' : '$PERL_VERSION',
+\   '$^W' : '$WARNING',
+\   '$^X' : '$EXECUTABLE_NAME',
+\   '$_'  : '$ARG',
+\   '$|'  : '$OUTPUT_AUTOFLUSH',
+\   '$~'  : '$FORMAT_NAME',
+\   '%!'  : '%OS_ERROR',
+\   '@+'  : '@LAST_MATCH_END',
+\   '@-'  : '@LAST_MATCH_START',
+\   '@_'  : '@ARG',
+\}
+
+let s:PUNCT_NAME = {
+\   '$ERRNO'                        : '$!',
+\   '$OS_ERROR'                     : '$!',
+\   '$LIST_SEPARATOR'               : '$"',
+\   '$POSTMATCH'                    : "$'",
+\   '$MATCH'                        : "$&",
+\   '$PREMATCH'                     : '$`',
+\   '$OFMT'                         : '$#',
+\   '$PID'                          : '$$',
+\   '$PROCESS_ID'                   : '$$',
+\   '$FORMAT_PAGE_NUMBER'           : '$%',
+\   '$GID'                          : '$(',
+\   '$REAL_GROUP_ID'                : '$(',
+\   '$EFFECTIVE_GROUP_ID'           : '$)',
+\   '$EGID'                         : '$)',
+\   '$LAST_PAREN_MATCH'             : '$+',
+\   '$OFS'                          : '$,',
+\   '$OUTPUT_FIELD_SEPARATOR'       : '$,',
+\   '$FORMAT_LINES_LEFT'            : '$-',
+\   '$INPUT_LINE_NUMBER'            : '$.',
+\   '$NR'                           : '$.',
+\   '$INPUT_RECORD_SEPARATOR'       : '$/',
+\   '$RS'                           : '$/',
+\   '$PROGRAM_NAME'                 : '$0',
+\   '$FORMAT_LINE_BREAK_CHARACTERS' : '$:',
+\   '$SUBSCRIPT_SEPARATOR'          : '$;',
+\   '$SUBSEP'                       : '$;',
+\   '$REAL_USER_ID'                 : '$<',
+\   '$UID'                          : '$<',
+\   '$FORMAT_LINES_PER_PAGE'        : '$=',
+\   '$EFFECTIVE_USER_ID'            : '$>',
+\   '$EUID'                         : '$>',
+\   '$CHILD_ERROR'                  : '$?',
+\   '$EVAL_ERROR'                   : '$@',
+\   '$ARRAY_BASE'                   : '$[',
+\   '$ORS'                          : "$\\",
+\   '$OUTPUT_RECORD_SEPARATOR'      : "$\\",
+\   '$OLD_PERL_VERSION'             : '$]',
+\   '$FORMAT_TOP_NAME'              : '$^',
+\   '$ACCUMULATOR'                  : '$^A',
+\   '$COMPILING'                    : '$^C',
+\   '$DEBUGGING'                    : '$^D',
+\   '$EXTENDED_OS_ERROR'            : '$^E',
+\   '$SYSTEM_FD_MAX'                : '$^F',
+\   '$INPLACE_EDIT'                 : '$^I',
+\   '$FORMAT_FORMFEED'              : '$^L',
+\   '$LAST_SUBMATCH_RESULT'         : '$^N',
+\   '$OSNAME'                       : '$^O',
+\   '$PERLDB'                       : '$^P',
+\   '$LAST_REGEXP_CODE_RESULT'      : '$^R',
+\   '$EXCEPTIONS_BEING_CAUGHT'      : '$^S',
+\   '$BASETIME'                     : '$^T',
+\   '$PERL_VERSION'                 : '$^V',
+\   '$WARNING'                      : '$^W',
+\   '$EXECUTABLE_NAME'              : '$^X',
+\   '$ARG'                          : '$_',
+\   '$OUTPUT_AUTOFLUSH'             : '$|',
+\   '$FORMAT_NAME'                  : '$~',
+\   '%ERRNO'                        : '%!',
+\   '%OS_ERROR'                     : '%!',
+\   '@LAST_MATCH_END'               : '@+',
+\   '@LAST_PAREN_MATCH'             : '@+',
+\   '@LAST_MATCH_START'             : '@-',
+\   '@ARG'                          : '@_',
+\}
+
+for [punctvar, engvar] in items(s:ENGLISH_NAME)
+    let s:PUNCT_VAR_DESC[engvar] = s:PUNCT_VAR_DESC[punctvar]
+endfor
+
 let s:ORDINAL = { '1':'st', '2':'nd', '3':'rd' }
 
 let s:MATCH_VAR_PAT = join([
 \     '\(',
-\         '[@%]\zs[$][.!*?^:]\?',
+\         '[@%]\zs[$]',
 \     '\|',
-\         '[@%][.!*?^:]\?',
+\         '[@%]',
 \     '\|',
-\         '[$][#.!*?^:]\?',
+\         '[$]\zs[$]\K\@=',
+\     '\|',
+\         '[$]',
+\     '\|',
+\         '[@%]\zs[$][.!*?:]',
+\     '\|',
+\         '[@%][.!*?:]',
+\     '\|',
+\         '[$][#.!*?:]',
+\     '\|',
+\         '[$]\zs[$][#.!*?:]\K\@=',
 \     '\)',
 \     '\s*',
 \     '\(',
@@ -228,7 +363,7 @@ let s:MATCH_VAR_PAT = join([
 \     '\|',
 \         '\K\k*',
 \     '\|',
-\         '\^\K',
+\         '\^\K\k*',
 \     '\|',
 \         '[{]\d\+[}]',
 \     '\|',
@@ -276,7 +411,8 @@ function! TPV_track_perl_var ()
 
     " Otherwise, extract components of variable...
     let sigil   = get(varparts,1)
-    let varname = escape(substitute( get(varparts,2), '^{\([^^].*\)}$', '\1', 'g'),'\\')
+    let varname = substitute(get(varparts,2), '^[{]\([^^]\_.*\)[}]$', '\1', '')
+    let esc_varname = escape(substitute( varname, '^{\([^^].*\)}$', '\1', 'g'),'\\')
     let bracket = get(varparts,3,'')
 
     " Do we need to bound the varname???
@@ -286,23 +422,23 @@ function! TPV_track_perl_var ()
     if sigil == '@' && bracket != '{' || sigil == '$#' || sigil =~ '[$%]' && bracket == '['
         let sigil = '@'
         let curs_var = '\C\%('
-                \ . '[$%]\_s*\%('.varname.boundary.'\|{'.varname.'}\)\%(\_s*[[]\)\@=\|'
-                \ . '[$]#\_s*\%('.varname.boundary.'\|{'.varname.'}\)\|'
-                \ .  '[@]\_s*\%('.varname.boundary.'\|{'.varname.'}\)\%(\_s*[{]\)\@!'
+                \ . '[$%]\_s*\%('.esc_varname.boundary.'\|{'.esc_varname.'}\)\%(\_s*[[]\)\@=\|'
+                \ . '[$]#\_s*\%('.esc_varname.boundary.'\|{'.esc_varname.'}\)\|'
+                \ .  '[@]\_s*\%('.esc_varname.boundary.'\|{'.esc_varname.'}\)\%(\_s*[{]\)\@!'
                 \ . '\)'
 
     " Handle hashes: %hash, $hash{...}, @hash{...}...
     elseif sigil == '%' && bracket != '[' || sigil =~ '[$@]' && bracket == '{'
         let sigil = '%'
         let curs_var = '\C\%('
-                \ . '[$@]\_s*\%('.varname.boundary.'\|{'.varname.'}\)\%(\_s*[{]\)\@=\|'
-                \ .  '[%]\_s*\%('.varname.boundary.'\|{'.varname.'}\)\%(\_s*[[]\)\@!'
+                \ . '[$@]\_s*\%('.esc_varname.boundary.'\|{'.esc_varname.'}\)\%(\_s*[{]\)\@=\|'
+                \ .  '[%]\_s*\%('.esc_varname.boundary.'\|{'.esc_varname.'}\)\%(\_s*[[]\)\@!'
                 \ . '\)'
 
     " Handle scalars: $scalar
     else
         let sigil = '$'
-        let curs_var = '\C[$]\_s*\%('.varname.boundary.'\|{'.varname.'}\)\%(\_s*[[{]\)\@!'
+        let curs_var = '\C[$]\_s*\%('.esc_varname.boundary.'\|{'.esc_varname.'}\)\%(\_s*[[{]\)\@!'
     endif
 
     " Special highlighting and descriptions for builtins...
@@ -316,12 +452,12 @@ function! TPV_track_perl_var ()
         highlight! link TRACK_PERL_VAR_ACTIVE   TRACK_PERL_VAR_BUILTIN
 
         echohl TRACK_PERL_VAR_BUILTIN
-        echo sigil.varname . ': ' . desc
+        echo s:truncate(sigil.varname . ': ' . desc)
         echohl None
         let s:displaying_message = 1
 
     " Special highlighting for undeclared variables...
-    elseif varname !~ ':' && !search('^[^#]*\%(my\|our\|state\|sub\s\+\w\+\s\+(\).*'.sigil.varname.'\%(\_$\|\W\@=\)', 'Wbnc')
+    elseif varname !~ ':' && !search(TPV_gen_decl_pat_for(sigil,varname), 'Wbnc')
         highlight!      TRACK_PERL_VAR_ACTIVE   cterm=NONE gui=NONE guifg=NONE guibg=NONE
         highlight! link TRACK_PERL_VAR_ACTIVE   TRACK_PERL_VAR_UNDECLARED
         echohl TRACK_PERL_VAR_UNDECLARED
@@ -345,20 +481,23 @@ function! TPV_track_perl_var ()
 
         " Does this var have a descriptive comment???
         let new_message = 0
-        let decl_pat = '\C^[^#]*\%(my\|our\|state\|sub\s\+\w\+\s\+(\@=\)\%(\s*([^)]*\|\s*\)\zs'.sigil.varname.'\%(\_$\|\W\)\@='
+        let decl_pat = TPV_gen_decl_pat_for(sigil,varname)
         let decl_line_num = search(decl_pat, 'Wcbn')
         if decl_line_num   " Ugly nested if's to minimize computation per cursor move...
             let decl_line = getline(decl_line_num)
+            let decl_start_pat = TPV_gen_decl_pat_for(sigil,varname,'start')
+            let decl_start_line_num = search(decl_start_pat, 'Wcbn')
+            let decl_type = substitute(matchlist(join(getline(decl_start_line_num,decl_line_num),' '), '^.*\<\(my\|our\|state\|local\|sub\)\%([^;[:alnum:]][^;]*\)\?'.sigil.varname)[1],'^sub','param','')
             if decl_line =~ '\s#\s'
                 let decl_line = substitute(decl_line, '.*\s#\s', sigil.varname.': ', '')
-                if len(decl_line)
-                    echohl TRACK_PERL_VAR
-                    echo decl_line
-                    echohl None
-                    let s:displaying_message = 1
-                    let new_message = 1
-                endif
+            else
+                let decl_line = sigil.varname
             endif
+            echohl TRACK_PERL_VAR
+            echo s:truncate(decl_type.' '.decl_line)
+            echohl None
+            let s:displaying_message = 1
+            let new_message = 1
         endif
 
         if s:displaying_message && !new_message
@@ -368,7 +507,7 @@ function! TPV_track_perl_var ()
     endif
 
     " Set up the match for variables...
-    let b:track_perl_var_locked_pat = '\<'.curs_var.'\%(\_$\|\W\@=\)'
+    let b:track_perl_var_locked_pat = curs_var.'\%(\_$\|\W\@=\)'
     try
         call matchadd('TRACK_PERL_VAR_ACTIVE', b:track_perl_var_locked_pat, 1000, s:match_id)
     catch /./
@@ -377,6 +516,17 @@ function! TPV_track_perl_var ()
     " Remember the variable...
     let s:prev_sigil   = sigil
     let s:prev_varname = varname
+endfunction
+
+
+" Generate pattern to match variable declaration
+
+function! TPV_gen_decl_pat_for (sigil,varname,...)
+    let ows = '\%(\_s\+\|#.*\)*'
+    let start = a:0 ? '' : '\zs'
+    return '\C\<\(my\|our\|state\|local\|sub\>'.ows.'\w*'.ows.'[(]\@=\)'.ows
+        \. '\%([(]'.ows.'\%([%$@]\w*\>'.ows.'\%(=[^,]*\)\?,'.ows.'\)*\)\?'
+        \. start . '[' . a:sigil . ']' . a:varname . '\>'
 endfunction
 
 
@@ -476,7 +626,7 @@ function! TPV_locate_perl_var_decl ()
     endif
 
     " Otherwise search backwards for the declaration and report the outcome...
-    let decl_pat = '\C^[^#]*\%(my\|our\|state\|sub\s\+\w\+\s\+(\@=\)\%(\s*([^)]*\|\s*\)\zs'.sigil.varname.'\%(\_$\|\W\)\@='
+    let decl_pat = TPV_gen_decl_pat_for(sigil,varname)
     if !search(decl_pat, 'Wbs')
         echohl WarningMsg
         echo "Can't find a declaration before this point"
@@ -503,31 +653,39 @@ function! TPV_rename_perl_var (mode) range
         return
     endif
 
-    " Handle arrays: @array, $array[...], $#array...
+    " Handle punctuation variables
+    let esc_varname = varname == '\' ? '[\\]' : varname == '!' ? '[!]' : substitute(varname, '[][~$*/.]', '[\0]', 'g')
+    let esc_varname = substitute(esc_varname, '\^', "\\^", 'g')
+    let esc_varname = substitute(esc_varname, '\w\zs$', '\\>', 'g')
+
+    " Handle arrays: @array, $array[...], @array[...], %array[...], $#array...
     if sigil == '@'
         let curs_var = '\C\%('
-                   \ . '[$%]\_s*\%(\zs'.varname.'\>\ze\|{\zs'.varname.'\ze}\)\%(\_s*[[]\)\@=\|'
-                   \ . '[$]#\_s*\%(\zs'.varname.'\>\ze\|{\zs'.varname.'\ze}\)\|'
-                   \ .  '[@]\_s*\%(\zs'.varname.'\>\ze\|{\zs'.varname.'\ze}\)\%(\_s*[{]\)\@!'
+                   \ . '[$%]\_s*\%(\zs'.esc_varname.'\ze\|{\zs'.esc_varname.'\ze}\)\%(\_s*[[]\)\@=\|'
+                   \ . '[$]#\_s*\%(\zs'.esc_varname.'\ze\|{\zs'.esc_varname.'\ze}\)\|'
+                   \ .  '[@]\_s*\%(\zs'.esc_varname.'\ze\|{\zs'.esc_varname.'\ze}\)\%(\_s*[{]\)\@!'
                    \ . '\)'
 
-    " Handle hashes: %hash, $hash{...}, @hash{...}...
+    " Handle hashes: %hash, $hash{...}, @hash{...}, %hash{...}...
     elseif sigil == '%'
         let curs_var = '\C\%('
-                   \ . '[$@]\_s*\%(\zs'.varname.'\>\ze\|{\zs'.varname.'\ze}\)\%(\_s*[{]\)\@=\|'
-                   \ .  '[%]\_s*\%(\zs'.varname.'\>\ze\|{\zs'.varname.'\ze}\)\%(\_s*[[]\)\@!'
+                   \ . '[$@]\_s*\%(\zs'.esc_varname.'\ze\|{\zs'.esc_varname.'\ze}\)\%(\_s*[{]\)\@=\|'
+                   \ .  '[%]\_s*\%(\zs'.esc_varname.'\ze\|{\zs'.esc_varname.'\ze}\)\%(\_s*[[]\)\@!'
                    \ . '\)'
 
     " Handle scalars: $scalar
     else
-        let curs_var = '\C[$]\_s*\%(\zs'.varname.'\>\ze\|{\zs'.varname.'\ze}\)\%(\_s*[[{]\)\@!'
+        let curs_var = '\C[$]\_s*\%(\zs'.esc_varname.'\ze\|{\zs'.esc_varname.'\ze}\)\%(\_s*[[{]\)\@!'
     endif
+
+    " Does it have a default?
+    let def_new_varname = substitute(get(s:PUNCT_NAME,sigil.varname, get(s:ENGLISH_NAME,sigil.varname, "")),'[$@%]','','')
 
     " Request the new name...
     echohl TRACK_PERL_VAR_QUESTION
     let context = a:mode == 'normal' ? 'Globally' : 'Within visual selection'
     call inputsave()
-    let new_varname = input(context . ' rename variable ' . sigil . varname . ' to: ' . sigil)
+    let new_varname = input(context . ' rename variable ' . sigil . varname . ' to: ' . sigil, def_new_varname)
     call inputrestore()
     echohl None
     if new_varname ==# varname || new_varname == ""
@@ -538,8 +696,8 @@ function! TPV_rename_perl_var (mode) range
     endif
 
     " Verify that it's safe...
-    let check_new_var = substitute('\<'.curs_var, varname, new_varname, 'g')
-    if search(check_new_var, 'wnc')
+    let check_new_var = substitute('\<'.curs_var, escape(varname,'\'), new_varname, 'g')
+    if varname !~ '\W' && search(check_new_var, 'wnc')
         echohl TRACK_PERL_VAR_QUESTION
         echon "\rA variable named " . sigil . new_varname . ' already exists. Proceed anyway? '
         echohl None
@@ -556,7 +714,7 @@ function! TPV_rename_perl_var (mode) range
 
     " Apply the transformation...
     let range = (a:mode == 'normal' ? '%' : a:firstline . ',' . a:lastline)
-    exec range . 's/\<' . curs_var . '/' . new_varname . '/g'
+    exec range . 's/\<' . curs_var . '/' . escape(new_varname,'\') . '/g'
 
     " Return to original position...
     normal ``
@@ -565,6 +723,11 @@ function! TPV_rename_perl_var (mode) range
     if a:mode == 'visual'
         exec 'nmap <silent> gv  :nmap gv ' . maparg('gv','n') . '<CR>'
     endif
+endfunction
+
+function! s:truncate (str)
+    let width = winwidth(0) - (&ruler ? str2nr(get(matchlist(&rulerformat,'^%\(\d\+\)'),1,17))+2 : 0)
+    return strwidth(a:str) > width ? strpart(a:str,0,width-3).'...' : a:str
 endfunction
 
 " Restore previous external compatibility options

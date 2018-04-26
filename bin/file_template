@@ -27,13 +27,6 @@ for ($INFO{'MODULE NAME'}) {
     s{^lib::}{}g;
 }
 
-for ($INFO{'MODULE NAME'}) {
-    s{$SUFFIX}{};
-    s{/}{::}g;
-    s{^.*::lib::}{}g;
-    s{^lib::}{}g;
-}
-
 for ($INFO{'RT NAME'}) {
     s{$SUFFIX}{};
     s{/}{-}g;

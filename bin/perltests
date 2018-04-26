@@ -1,12 +1,28 @@
 #! /usr/bin/env perl
 use 5.010;
 use warnings;
+use Time::HiRes 'time';
+
+if (-e '.perltests') {
+    my $checks = do{ local (@ARGV,$/) = '.perltests'; readline };
+    if (!defined eval $checks . ';1;') {
+        my $error = $@;
+        $error =~ s{\A(.*) at .*}{$1}ms;
+        require Test::More;
+        Test::More::diag("Result: SKIP");
+        Test::More::diag("Reason: $error");
+        Test::More::diag('Tested under Perl '
+                        . sprintf("%d.%d.%d in %0.2f sec\n", $]=~/(\d+)[.](\d\d\d)(\d*)/, 0)
+        );
+        exit;
+    }
+}
 
 my %opt;
 @ARGV =
     grep { /^-s\S*$/ ? do{ $opt{verbosity} = -2; () } : $_ }
     grep { /^-v\S*$/ ? do{ $opt{verbosity} =  1; () } : $_ }
-         @ARGV;
+        @ARGV;
 
 {
     package TAP::Formatter::Console::NoTimeStamp;
@@ -22,8 +38,8 @@ my %opt;
 }
 
 # Locate Perl 5 tests, unless explicitly specified...
-@ARGV = glob("*.t")                   unless @ARGV;
 @ARGV = glob("t/*.t devt/*.t dt/*.t") unless @ARGV;
+@ARGV = glob("*.t")                   unless @ARGV;
 @ARGV = "test.pl"                     unless @ARGV || !-r "test.pl";
 
 @ARGV = map { -d $_ ? glob("$_/*.t") : $_ } @ARGV;
@@ -39,7 +55,10 @@ my $harness = TAP::Harness->new({
 
 require Test::More;
 Test::More::diag('Testing under Perl ' . sprintf "%d.%d.%d\n", $]=~/(\d+)[.](\d\d\d)(\d*)/);
-$harness->runtests( fix_6tests(@ARGV) )  if  @ARGV;
+my @fixed_tests = fix_6tests(@ARGV);
+my $start = time;
+$harness->runtests( @fixed_tests )  if  @ARGV;
+my $duration = time - $start;
 say "Couldn't find any tests to run"     if !@ARGV;
 
 
@@ -62,4 +81,6 @@ sub fix_6tests {
     return @tests;
 }
 
-Test::More::diag('Tested under Perl ' . sprintf "%d.%d.%d\n", $]=~/(\d+)[.](\d\d\d)(\d*)/);
+Test::More::diag('Tested under Perl '
+                . sprintf("%d.%d.%d in %0.2f sec\n", $]=~/(\d+)[.](\d\d\d)(\d*)/, $duration)
+);

@@ -91,7 +91,7 @@ function EQAS_Align (mode, ...) range
     endif
 
     "Locate block of code to be considered (same indentation, no blanks)
-    if a:mode == 'vmap'
+    if a:mode == 'xmap'
         let firstline = a:firstline
         let lastline  = a:lastline
 
@@ -131,15 +131,15 @@ function EQAS_Align (mode, ...) range
 
     " Determine maximal lengths of lvalue and operator...
     let op_lines = filter(copy(lines),'!empty(v:val.op)')
-    let max_lval = max( map(copy(op_lines), 'strlen(v:val.lval)') ) + visible_op_offset
-    let max_op   = max( map(copy(op_lines), 'strlen(v:val.op)'  ) )
+    let max_lval = max( map(copy(op_lines), 'strchars(v:val.lval)') ) + visible_op_offset
+    let max_op   = max( map(copy(op_lines), 'strchars(v:val.op)'  ) )
 
     " Recompose lines with operators at the maximum length...
     let linenum = firstline
     for line in lines
         let newline = empty(line.op)
         \ ? line.text
-        \ : printf("%-*s%*s %s", max_lval, line.lval, max_op, line.op, line.rval)
+        \ : printf("%-*S%*S %S", max_lval, line.lval, max_op, line.op, line.rval)
 
         call setline(linenum, newline)
         let linenum += 1
@@ -149,10 +149,10 @@ endfunction
 
 nmap <silent> =     :call EQAS_Align('nmap')<CR>
 nmap <silent> ==    :call EQAS_Align('nmap', {'paragraph':1} )<CR>
-nmap <silent> +     :call EQAS_Align('nmap', {'cursor':1} )<CR>
-nmap <silent> ++    :call EQAS_Align('nmap', {'cursor':1, 'paragraph':1} )<CR>
-vmap <silent> =     :call EQAS_Align('vmap')<CR>
-vmap <silent> +     :call EQAS_Align('vmap', {'cursor':1} )<CR>
+nmap <silent> +     :call EQAS_Align('nmap', {'cursor':1} )<CR>:%s/\s\+$//<CR>``
+nmap <silent> ++    :call EQAS_Align('nmap', {'cursor':1, 'paragraph':1} )<CR>:%s/\s\+$//<CR>``
+xmap <silent> =     :call EQAS_Align('xmap')<CR>
+xmap <silent> +     :call EQAS_Align('xmap', {'cursor':1} )<CR>
 
 " Restore previous external compatibility options
 let &cpo = s:save_cpo

@@ -42,8 +42,8 @@ function! TODO_Load_Support ()
     nmap <silent><buffer>      <TAB> :call TODO_Rebullet(1, line('$'))<CR>
 
     " Shifting visual regions cause rebulleting and reselection...
-    vnoremap <silent><buffer>   >  >:call TODO_RebulletVisual()<CR>gv
-    vnoremap <silent><buffer>   <  <:call TODO_RebulletVisual()<CR>gv
+    xnoremap <silent><buffer>   >  >:call TODO_RebulletVisual()<CR>gv
+    xnoremap <silent><buffer>   <  <:call TODO_RebulletVisual()<CR>gv
 
     " Next line is always indented past the bullet...
     inoremap <expr><buffer> <CR> TODO_IndentLine()

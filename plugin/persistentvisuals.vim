@@ -30,33 +30,33 @@ function PV_Toggle ()
 endfunction
 
 " When shifting, retain selection over multiple shifts...
-silent! vmap     <unique><silent><expr>  >  <SID>ShiftKeepingSelection(">")
-silent! vmap     <unique><silent><expr>  <  <SID>ShiftKeepingSelection("<")
+silent! xmap     <unique><silent><expr>  >  <SID>ShiftKeepingSelection(">")
+silent! xmap     <unique><silent><expr>  <  <SID>ShiftKeepingSelection("<")
 
 " When case changing, retain selection...
-silent! vnoremap <unique><silent><expr>  ~  <SID>OpKeepingSelection("~")
-silent! vnoremap <unique><silent><expr>  L  <SID>OpKeepingSelection("u")
-silent! vnoremap <unique><silent><expr>  U  <SID>OpKeepingSelection("U")
-silent! vnoremap <unique><silent><expr>  J  <SID>OpKeepingSelection("J")
+silent! xnoremap <unique><silent><expr>  ~  <SID>OpKeepingSelection("~")
+silent! xnoremap <unique><silent><expr>  L  <SID>OpKeepingSelection("u")
+silent! xnoremap <unique><silent><expr>  U  <SID>OpKeepingSelection("U")
+silent! xnoremap <unique><silent><expr>  J  <SID>OpKeepingSelection("J")
 
 " When substituting, retain selection...
-silent! vnoremap <unique><silent><expr>  s  <SID>SubstKeepingSelection("s")
-silent! vnoremap <unique><silent><expr>  S  <SID>SubstKeepingSelection("S")
-silent! vnoremap <unique><silent><expr>  c  <SID>SubstKeepingSelection("c")
-silent! vnoremap <unique><silent><expr>  C  <SID>SubstKeepingSelection("C")
+noautocmd silent! xnoremap <unique><silent><expr>  s  <SID>SubstKeepingSelection("s")
+noautocmd silent! xnoremap <unique><silent><expr>  S  <SID>SubstKeepingSelection("S")
+noautocmd silent! xnoremap <unique><silent><expr>  c  <SID>SubstKeepingSelection("c")
+noautocmd silent! xnoremap <unique><silent><expr>  C  <SID>SubstKeepingSelection("C")
 
 " When character changing, retain selection...
-silent! vnoremap <unique><silent><expr>  r  <SID>ReplaceVisualSelection()
+silent! xnoremap <unique><silent><expr>  r  <SID>ReplaceVisualSelection()
 
 " Hit <RETURN> to escape visual mode...
-silent! vnoremap <unique><silent>        <CR>   <ESC>
+silent! xnoremap <unique><silent>        <CR>   <ESC>
 
 " Hit ZZ to quit from within visual mode...
-silent! vnoremap <unique><silent>        ZZ     <ESC>ZZ
+silent! xnoremap <unique><silent>        ZZ     <ESC>ZZ
 
 " Allow selection to persist through an undo...
-silent! vnoremap <unique><silent>        u      <ESC>ugv
-silent! vnoremap <unique><silent>        <C-R>  <ESC><C-R>gv
+silent! xnoremap <unique><silent>        u      <ESC>ugv
+silent! xnoremap <unique><silent>        <C-R>  <ESC><C-R>gv
 
 
 "=====[ Implementation ]===========
@@ -111,9 +111,16 @@ function! s:ResetBlockSelection ()
     return "\<C-R>\<C-V>" . line_right . 'G' . (col_right+offset_right) . '|' . motion
 endfunction
 
+function! PV_Notify (event)
+    if exists('#User#PV_' . a:event)
+        exec 'doautocmd User PV_' . a:event
+    endif
+endfunction
+
 function! s:SubstKeepingSelection (cmd)
+    call PV_Notify('Start')
     if s:pv_active
-        inoremap <ESC>  <ESC>:exec 'iunmap <'.'ESC>'<CR>gvoO`]<LEFT>
+        inoremap <ESC>  <ESC>:silent exec 'iunmap <'.'ESC>'<CR>:call PV_Notify('End')<CR><C-L><CR>gvoO`]<LEFT>
     endif
 
     return a:cmd

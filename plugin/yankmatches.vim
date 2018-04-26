@@ -30,10 +30,10 @@ nmap <silent> dm  :     call ForAllMatches('delete', {})<CR>
 nmap <silent> DM  :     call ForAllMatches('delete', {'inverse':1})<CR>
 nmap <silent> ym  :     call ForAllMatches('yank',   {})<CR>
 nmap <silent> YM  :     call ForAllMatches('yank',   {'inverse':1})<CR>
-vmap <silent> dm  :<C-U>call ForAllMatches('delete', {'visual':1})<CR>
-vmap <silent> DM  :<C-U>call ForAllMatches('delete', {'visual':1, 'inverse':1})<CR>
-vmap <silent> ym  :<C-U>call ForAllMatches('yank',   {'visual':1})<CR>
-vmap <silent> YM  :<C-U>call ForAllMatches('yank',   {'visual':1, 'inverse':1})<CR>
+xmap <silent> dm  :<C-U>call ForAllMatches('delete', {'visual':1})<CR>
+xmap <silent> DM  :<C-U>call ForAllMatches('delete', {'visual':1, 'inverse':1})<CR>
+xmap <silent> ym  :<C-U>call ForAllMatches('yank',   {'visual':1})<CR>
+xmap <silent> YM  :<C-U>call ForAllMatches('yank',   {'visual':1, 'inverse':1})<CR>
 
 function! ForAllMatches (command, options)
     " Remember where we parked...
@@ -62,7 +62,7 @@ function! ForAllMatches (command, options)
     if inverted
         let inverted_line_nums = range(start_line, end_line)
         for line_num in matched_line_nums
-            call remove(inverted_line_nums, line_num-1)
+            call remove(inverted_line_nums, line_num-start_line)
         endfor
         let matched_line_nums = reverse(inverted_line_nums)
     endif
@@ -80,7 +80,19 @@ function! ForAllMatches (command, options)
     endfor
 
     " Make yanked lines available for putting...
-    let @" = yanked
+    " previously just let @" = yanked
+    if !exists('g:YankMatches#ClipboardRegister')
+        let l:clipboard_flags = split(&clipboard, ',')
+        if index(l:clipboard_flags, 'unnamedplus') >= 0
+            let g:YankMatches#ClipboardRegister='+'
+        elseif index(l:clipboard_flags, 'unnamed') >= 0
+            let g:YankMatches#ClipboardRegister='*'
+        else
+            let g:YankMatches#ClipboardRegister='"'
+        endif
+    endif
+    let l:command = ':let @' . g:YankMatches#ClipboardRegister . ' = yanked'
+    execute 'normal! ' . l:command . "\<cr>
 
     " Return to original position...
     call setpos('.', orig_pos)

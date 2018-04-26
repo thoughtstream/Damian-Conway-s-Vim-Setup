@@ -7,12 +7,12 @@
 "##  To use:                                                         ##
 "##                                                                  ##
 "##     nmap <SOMEKEY>  :call ListTrans_toggle_format()<CR>          ##
-"##     vmap <SOMEKEY>  :call ListTrans_toggle_format('visual')<CR>  ##
+"##     xmap <SOMEKEY>  :call ListTrans_toggle_format('visual')<CR>  ##
 "##                                                                  ##
 "##  For example:                                                    ##
 "##                                                                  ##
 "##     nmap  ;l   :call ListTrans_toggle_format()<CR>               ##
-"##     vmap  ;l   :call ListTrans_toggle_format('visual')<CR>       ##
+"##     xmap  ;l   :call ListTrans_toggle_format('visual')<CR>       ##
 "##                                                                  ##
 "######################################################################
 

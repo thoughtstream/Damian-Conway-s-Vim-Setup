@@ -15,8 +15,8 @@ set cpo&vim
 
 "=====[ INTERFACE ]===============
 
-vnoremap <expr><silent><script>  I  <SID>VisualSmartIA() . 'I'
-vnoremap <expr><silent><script>  A  <SID>VisualSmartIA() . 'A'
+xnoremap <expr><silent><script>  I  <SID>VisualSmartIA() . 'I'
+xnoremap <expr><silent><script>  A  <SID>VisualSmartIA() . 'A'
 
 " Turn Visual mode column autoguide on...
 function! VG_On ()

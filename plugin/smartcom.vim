@@ -210,11 +210,11 @@ function! <SID>Complete ()
         let s:placeholder_count -= 1
         if curr_line !~ '\S'
             delete
-            return "\<ESC>/"  . s:placeholder_pat . "\<CR>cw"
+            return "\<ESC>/"  . s:placeholder_pat . "\<CR>\<C-L>veo\<C-G>"
         elseif curr_line =~ '\s'.curr_pos
-            return "\<ESC>x/" . s:placeholder_pat . "\<CR>cw"
+            return "\<ESC>x/" . s:placeholder_pat . "\<CR>\<C-L>veo\<C-G>"
         else
-            return "\<ESC>/"  . s:placeholder_pat . "\<CR>cw"
+            return "\<ESC>/"  . s:placeholder_pat . "\<CR>\<C-L>veo\<C-G>"
         endif
     endif
 
@@ -262,12 +262,14 @@ function! <SID>Complete ()
                 let restore_cursor = 1
 
                 " This is how to jump to the first placeholder...
-                let reversion .= "\<ESC>/" . s:placeholder_pat . "\<CR>cw"
+                let reversion .= "\<ESC>/" . s:placeholder_pat . "\<CR>veo\<C-G>"
             endif
 
             " Return the completion...
             if restore_cursor < 0
                 let reversion .= repeat("\<LEFT>", -restore_cursor)
+            elseif restore_cursor > 1
+                let reversion = substitute(reversion, '[\d\+,\s*\d\+,\s*\zs\(\d\+\)\ze,', '\=submatch(1)+restore_cursor-1', '')
             endif
             return completion . (restore_cursor ? reversion : "")
         endif
@@ -299,7 +301,7 @@ function! <SID>RightKey ()
         if getline('.') !~ '\S'
             delete
         endif
-        return "\<ESC>/" . s:placeholder_pat . "\<CR>cw"
+        return "\<ESC>/" . s:placeholder_pat . "\<CR>veo\<C-G>"
     else
         return "\<RIGHT>"
     endif

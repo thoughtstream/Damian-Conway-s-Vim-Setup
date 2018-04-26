@@ -6,7 +6,7 @@
 "##                                                                  ##
 "##  To use:                                                         ##
 "##                                                                  ##
-"##     vmap <silent><expr>  ++  VMATH_YankAndAnalyse()              ##
+"##     xmap <silent><expr>  ++  VMATH_YankAndAnalyse()              ##
 "##     nmap <silent>        ++  vip++                               ##
 "##                                                                  ##
 "##  (or whatever keys you prefer to remap these actions to)         ##
@@ -26,11 +26,14 @@ set cpo&vim
 
 " Grab visual selection and do simple math on it...
 function! VMATH_YankAndAnalyse ()
-    return "y:call VMATH_Analyse()\<CR>:silent normal gv\<CR>"
+    return "y:call VMATH_Analyse()\<CR>"
 endfunction
 
 " What to consider a number...
-let s:NUM_PAT  = '^[+-]\?\d\+\%([.]\d\+\)\?\([eE][+-]\?\d\+\)\?$'
+"let s:NUM_PAT  = '^[+-]\?\d\+\%([.]\d\+\)\?\([eE][+-]\?\d\+\)\?$'
+let s:NUM_PAT  = '^[$€£¥]\?[+-]\?[$€£¥]\?\%(\d\{1,3}\%(,\d\{3}\)\+\|\d\+\)\%([.]\d\+\)\?\([eE][+-]\?\d\+\)\?$'
+
+" What to consider a timing...
 let s:TIME_PAT = '^\d\+\%([:]\d\+\)\+\%([.]\d\+\)\?$'
 
 " How widely to space the report components...
@@ -38,9 +41,11 @@ let s:REPORT_GAP = 5  "spaces between components
 
 " Do simple math on current yank buffer...
 function! VMATH_Analyse ()
+    "
     " Extract data from selection...
     let selection = getreg('')
     let raw_numbers = filter(split(selection), 'v:val =~ s:NUM_PAT')
+    let raw_numbers = map(raw_numbers, 'substitute(v:val,"[,$€£¥]","","g")')
     let temporal = empty(raw_numbers)
 
     " If no numerical data, try time data...
@@ -85,25 +90,12 @@ function! VMATH_Analyse ()
 
     " Report...
     let gap = repeat(" ", s:REPORT_GAP)
-    highlight NormalUnderlined term=underline cterm=underline gui=underline
-    echohl NormalUnderlined
-    echo  's'
-    echohl NONE
-    echon  'um: ' . @s . gap
-    echohl NormalUnderlined
-    echon 'a'
-    echohl NONE
-    echon  'vg: ' . @a . gap
-    echon 'mi'
-    echohl NormalUnderlined
-    echon   'n'
-    echohl NONE
-    echon    ': ' . @n . gap
-    echon 'ma'
-    echohl NormalUnderlined
-    echon   'x'
-    echohl NONE
-    echon    ': ' . @x . gap
+    redraw
+    echo
+    \    's̲um: ' . @s . gap
+    \  . 'a̲vg: ' . @a . gap
+    \  . 'min̲: ' . @n . gap
+    \  . 'max̲: ' . @x . gap
 
 endfunction
 

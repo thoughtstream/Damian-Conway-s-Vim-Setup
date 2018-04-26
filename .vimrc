@@ -2,10 +2,11 @@
 
 setglobal termencoding=utf-8 fileencodings=
 scriptencoding utf-8
+set encoding=utf-8
 
-autocmd BufNewFile,BufRead  *   if &modifiable 
+autocmd BufNewFile,BufRead  *   try
 autocmd BufNewFile,BufRead  *       set encoding=utf-8
-autocmd BufNewFile,BufRead  *   endif
+autocmd BufNewFile,BufRead  *   endtry
 
 
 "====[ Ensure autodoc'd plugins are supported ]===========
@@ -17,8 +18,25 @@ runtime plugin/_autodoc.vim
 
 filetype plugin indent on
 
-autocmd BufNewFile,BufRead  *.t                     setfiletype perl
-autocmd BufNewFile,BufRead  *.itn                   setfiletype itn
+augroup FiletypeInference
+    autocmd!
+    autocmd BufNewFile,BufRead  *.t      setfiletype perl
+    autocmd BufNewFile,BufRead  *.pod    setfiletype pod
+    autocmd BufNewFile,BufRead  *.itn    setfiletype itn
+    autocmd BufNewFile,BufRead  *        call s:infer_filetype()
+augroup END
+
+function! s:infer_filetype ()
+    for line in getline(1,20)
+        if line =~ '^\s*use\s*v\?5\.\S\+\s*;\s*$'
+            setfiletype perl
+            return
+        elseif line =~ '^\s*use\s*v\?6\s*;\s*$'
+            setfiletype perl6
+            return
+        endif
+    endfor
+endfunction
 
 
 "=====[ Comments are important ]==================
@@ -29,6 +47,11 @@ highlight Comment term=bold ctermfg=white
 "=====[ Enable Nmap command for documented mappings ]================
 
 runtime plugin/documap.vim
+
+
+"====[ Escape insert mode via 'jj' ]=============================
+
+imap jj <ESC>
 
 
 "====[ Edit and auto-update this config file and plugins ]==========
@@ -58,6 +81,8 @@ Nmap ;b  [Edit ~/bin/...]  :next ~/bin/
 " :read and :write shouldn't set #
 set cpo-=aA
 
+" Make /g the default on :s/.../../ commands (use /gg to disable)
+"set gdefault
 
 
 "====[ Go back to alternate file (but retain other g<whatever> mappings)]====
@@ -162,21 +187,22 @@ autocmd BufReadPost *  if line("'\"") > 1 && line("'\"") <= line("$")
 "====[ I'm sick of typing :%s/.../.../g ]=======
 
 Nmap S  [Shortcut for :s///g]  :%s//g<LEFT><LEFT>
-vmap S                         :Blockwise s//g<LEFT><LEFT>
+xmap S                         :s//g<LEFT><LEFT>
 
 Nmap <expr> M  [Shortcut for :s/<last match>//g]  ':%s/' . @/ . '//g<LEFT><LEFT>'
-vmap <expr> M                                     ':s/' . @/ . '//g<LEFT><LEFT>'
+xmap <expr> M                                     ':s/' . @/ . '//g<LEFT><LEFT>'
 
 "====[ Toggle visibility of naughty characters ]============
 
 " Make naughty characters visible...
 " (uBB is right double angle, uB7 is middle dot)
-set lcs=tab:⇒·,trail:␣,nbsp:~"
+set lcs=tab:»·,trail:␣,nbsp:˷
 highlight InvisibleSpaces ctermfg=Black ctermbg=Black
-call matchadd('InvisibleSpaces', '\s\+\%#', 100)
+call matchadd('InvisibleSpaces', '\S\@<=\s\+\%#\ze\s*$', -10)
 
 augroup VisibleNaughtiness
     autocmd!
+    autocmd BufEnter  *       set list
     autocmd BufEnter  *       set list
     autocmd BufEnter  *.txt   set nolist
     autocmd BufEnter  *.vp*   set nolist
@@ -194,10 +220,15 @@ set smartcase       "...unless uppercase letters used
 
 set hlsearch        "Highlight all matches
 highlight clear Search
-highlight       Search    ctermfg=White
+highlight       Search    ctermfg=White  ctermbg=Black  cterm=bold
+highlight    IncSearch    ctermfg=White  ctermbg=Red    cterm=bold
+
+" Absolute direction for n and N...
+nnoremap  <silent><expr> n  'Nn'[v:searchforward] . ":call HLNext()\<CR>"
+nnoremap  <silent><expr> N  'nN'[v:searchforward] . ":call HLNext()\<CR>"
 
 "Delete in normal mode to switch off highlighting till next search and clear messages...
-Nmap <silent> <BS> [Cancel highlighting]  :call HLNextOff() <BAR> :nohlsearch <BAR> :call VG_Show_CursorColumn('off')<CR>
+Nmap <silent> <BS> [Cancel highlighting]  :call HLNextOff() <BAR> :nohlsearch <BAR> :call VG_Show_CursorColumn('off')<CR>::HierClear<CR>
 
 "Double-delete to remove trailing whitespace...
 Nmap <silent> <BS><BS>  [Remove trailing whitespace] mz:call TrimTrailingWS()<CR>`z
@@ -205,41 +236,6 @@ Nmap <silent> <BS><BS>  [Remove trailing whitespace] mz:call TrimTrailingWS()<CR
 function! TrimTrailingWS ()
     if search('\s\+$', 'cnw')
         :%s/\s\+$//g
-    endif
-endfunction
-
-
-"====[ Handle encoding issues on a Macos terminal]============
-
-set encoding=latin1
-
-Nmap <silent> U  [Toggle UTF8]  :call ToggleUTF8()<CR><CR>:echo '[' . &fileencoding . ']'<CR>
-Nmap <silent> UU [Toggle Unicode terminal]  :call ToggleTerminal()<CR><CR>
-
-function! ToggleUTF8 ()
-    if &fileencoding =~ 'utf-8'
-        set fileencoding=latin1
-        set termencoding=
-        !osascript -e 'tell application "Terminal" to set current settings of front window to settings set "stdterminal"'
-    else
-        set fileencoding=utf8
-        set termencoding=utf8
-        !osascript -e 'tell application "Terminal" to set current settings of front window to settings set "stdterminal_unicode"'
-    endif
-endfunction
-
-let g:UnicodeTerminal = 0
-function! ToggleTerminal ()
-    if g:UnicodeTerminal
-        !osascript -e 'tell application "Terminal" to set current settings of front window to settings set "stdterminal"'
-        let g:UnicodeTerminal = 0
-        set termencoding=
-        echo '[Latin1 terminal]'
-    else
-        !osascript -e 'tell application "Terminal" to set current settings of front window to settings set "stdterminal_unicode"'
-        let g:UnicodeTerminal = 1
-        set termencoding=utf8
-        echo '[Unicode terminal]'
     endif
 endfunction
 
@@ -255,34 +251,6 @@ endfunction
 
 set background=dark
 
-
-"======[ Magically build interim directories if necessary ]===================
-
-function! AskQuit (msg, options, quit_option)
-    if confirm(a:msg, a:options) == a:quit_option
-        exit
-    endif
-endfunction
-
-function! EnsureDirExists ()
-    let required_dir = expand("%:h")
-    if !isdirectory(required_dir)
-        call AskQuit("Parent directory '" . required_dir . "' doesn't exist.",
-             \       "&Create it\nor &Quit?", 2)
-
-        try
-            call mkdir( required_dir, 'p' )
-        catch
-            call AskQuit("Can't create '" . required_dir . "'",
-            \            "&Quit\nor &Continue anyway?", 1)
-        endtry
-    endif
-endfunction
-
-augroup AutoMkdir
-    autocmd!
-    autocmd  BufNewFile  *  :call EnsureDirExists()
-augroup END
 
 
 "=====[ Enable smartwrapping ]==================================
@@ -301,12 +269,15 @@ set formatoptions-=cro
 
 set wrapmargin=2                            "Wrap 2 characters from the edge of the window
 "set cinwords = ""                           "But not for C-like keywords
+set cinoptions+=#1
+set cinkeys-=0#
 
 "=======[ Fix smartindent stupidities ]============
 
 set autoindent                              "Retain indentation on next line
 set smartindent                             "Turn on autoindenting of blocks
 
+let g:vim_indent_cont = 0                   " No magic shifts on Vim line continuations
 
 nnoremap <silent> >> :call ShiftLine()<CR>|               "And no shift magic on comments
 
@@ -326,7 +297,7 @@ set modelines=0
 "=====[ Quicker access to Ex commands ]==================
 
 nmap ; :
-vmap ; :Blockwise<SPACE>
+xmap ; :
 
 
 "=====[ Make Visual modes work better ]==================
@@ -335,36 +306,36 @@ vmap ; :Blockwise<SPACE>
 nnoremap v <C-V>
 nnoremap <C-V> v
 
-vnoremap v <C-V>
-vnoremap <C-V> v
+xnoremap v <C-V>
+xnoremap <C-V> v
 
 "Square up visual selections...
 set virtualedit=block
 
 " Make BS/DEL work as expected in visual modes (i.e. delete the selected text)...
-vmap <BS> x
+xmap <BS> x
 
 " Make vaa select the entire file...
-vmap aa VGo1G
+xmap aa VGo1G
 
 
 "=====[ Make arrow keys move visual blocks around ]======================
 
-vmap <up>    <Plug>SchleppUp
-vmap <down>  <Plug>SchleppDown
-vmap <left>  <Plug>SchleppLeft
-vmap <right> <Plug>SchleppRight
+xmap <up>    <Plug>SchleppUp
+xmap <down>  <Plug>SchleppDown
+xmap <left>  <Plug>SchleppLeft
+xmap <right> <Plug>SchleppRight
 
-vmap D       <Plug>SchleppDupLeft
-vmap <C-D>   <Plug>SchleppDupLeft
+xmap D       <Plug>SchleppDupLeft
+xmap <C-D>   <Plug>SchleppDupLeft
 
 
 "=====[ Demo vim commands ]==============================
 
 highlight WHITE_ON_BLACK ctermfg=white
 
-Nmap <silent> ;; [Demonstrate Vimscript block] :call DemoCommand()<CR>
-vmap <silent> ;; :<C-U>call DemoCommand(1)<CR>
+Nmap     <silent> ;; [Demonstrate Vimscript block] :call DemoCommand()<CR>
+xnoremap <silent> ;; :<C-U>call DemoCommand(1)<CR>
 
 function! DemoCommand (...)
     " Remember how everything was before we did this...
@@ -401,58 +372,18 @@ function! DemoCommand (...)
 endfunction
 
 
-"=====[ Toggle syntax highlighting ]==============================
-
-Nmap <silent> ;y [Toggle syntax highlighting]
-                 \ : if exists("syntax_on") <BAR>
-                 \    syntax off <BAR>
-                 \ else <BAR>
-                 \    syntax enable <BAR>
-                 \ endif<CR>
-
-
-
-"=====[ Always syntax highlight .patch and ToDo and .itn files ]=======================
-
-augroup PatchHighlight
-    autocmd!
-    autocmd BufEnter  *.patch,*.diff  let b:syntax_was_on = exists("syntax_on")
-    autocmd BufEnter  *.patch,*.diff  syntax enable
-    autocmd BufLeave  *.patch,*.diff  if !getbufvar("%","syntax_was_on")
-    autocmd BufLeave  *.patch,*.diff      syntax off
-    autocmd BufLeave  *.patch,*.diff  endif
-augroup END
-
-augroup TODOHighlight
-    autocmd!
-    autocmd BufEnter  *.todo,todo,ToDo,TODO  let b:syntax_was_on = exists("syntax_on")
-    autocmd BufEnter  *.todo,todo,ToDo,TODO  syntax enable
-    autocmd BufLeave  *.todo,todo,ToDo,TODO  if !getbufvar("%","syntax_was_on")
-    autocmd BufLeave  *.todo,todo,ToDo,TODO      syntax off
-    autocmd BufLeave  *.todo,todo,ToDo,TODO  endif
-augroup END
-
-augroup ITNHighlight
-    autocmd!
-    autocmd BufEnter  *.itn   let b:syntax_was_on = exists("syntax_on")
-    autocmd BufEnter  *.itn   syntax enable
-    autocmd BufEnter  *.itn   set syntax=itn
-    autocmd BufLeave  *.itn   if !getbufvar("%","syntax_was_on")
-    autocmd BufLeave  *.itn       syntax off
-    autocmd BufLeave  *.itn   endif
-augroup END
 
 
 "=====[ Configure % key (via matchit plugin) ]==============================
 
 " Match angle brackets...
-set matchpairs+=<:>,?:?
-
+set matchpairs+=<:>,«:»,｢:｣
 
 "=====[ Miscellaneous features (mainly options) ]=====================
 
 set title           "Show filename in titlebar of window
 set titleold=
+set titlestring=%t%(\ %M%)%(\ (%{expand(\"%:~:.:h\")})%)%(\ %a%)
 
 set nomore          "Don't page long listings
 
@@ -475,10 +406,11 @@ set backspace=indent,eol,start      "BS past autoindents, line boundaries,
 set fileformats=unix,mac,dos        "Handle Mac and DOS line-endings
                                     "but prefer Unix endings
 
-
 set wildmode=list:longest,full      "Show list of completions
                                     "  and complete as much as possible,
                                     "  then iterate full completions
+
+set complete-=t                     " I don't use tags, so no need to search for them
 
 set infercase                       "Adjust completions to match case
 
@@ -489,6 +421,9 @@ set updatecount=10                  "Save buffer every 10 chars typed
 
 " Keycodes and maps timeout in 3/10 sec...
 set timeout timeoutlen=300 ttimeoutlen=300
+
+" "idleness" is 2 sec
+set updatetime=2000
 
 set thesaurus+=~/Documents/thesaurus    "Add thesaurus file for ^X^T
 set dictionary+=~/Documents/dictionary  "Add dictionary file for ^X^K
@@ -508,30 +443,15 @@ Nmap BB [Back up current file]  :!bak -q %<CR><CR>:echomsg "Backed up" expand('%
 
 " Use space to jump down a page (like browsers do)...
 nnoremap   <Space> <PageDown>
-vnoremap   <Space> <PageDown>
-
-" Forward/back one file...
-nmap <silent><expr> <DOWN> File_advance('next')
-nmap <silent><expr> <UP>   File_advance('prev')
-
-function! File_advance (dir)
-    if a:dir == 'next'
-        return argidx() < argc() - 1 ? ":next\<CR>0"
-        \                            : ":echohl Comment|:echo 'At last file'|echohl NONE\<CR>"
-    elseif a:dir == 'prev'
-        return argidx() > 0          ? ":prev\<CR>0"
-        \                            : ":echohl Comment|:echo 'At first file'|echohl NONE\<CR>"
-    else
-        echoerr "Unknown direction for file advance: " . a:dir
-    endif
-endfunction
+xnoremap   <Space> <PageDown>
 
 " Format file with autoformat (capitalize to specify options)...
 nmap          F  !Gformat -T4 -
 nmap <silent> f  !Gformat -T4<CR>
 nmap          ff r<CR>fgej
-vmap          F :!format -T4 -all -
-vmap <silent> f :!format -T4 -all<CR>
+
+xmap          F :!format -T4 -all -
+xmap <silent> f :!format -T4 -all<CR>
 
 " Install current file and swap to alternate file...
 Nmap IP [Install current file and swap to alternate] :!install -f %<CR>
@@ -543,11 +463,19 @@ cmap *** **/*
 
 " Take off and nuke the entire buffer contents from space
 " (It's the only way to be sure)...
-nmap XX 1GdG
+nnoremap <expr> XX ClearBuffer()
+
+function! ClearBuffer ()
+    if &filetype =~ 'perl'
+        return "1Gj}dGA\<CR>\<CR>\<ESC>"
+    else
+        return '1GdG'
+    endif
+endfunction
 
 " Replace the current buffer with a copy of the most recent file...
 
-nmap RR XX:0r#<CR><C-G>
+nmap RR 1GdG:0r#<CR><C-G>
 
 " Insert cut marks...
 nmap -- A<CR><CR><CR><ESC>k6i-----cut-----<ESC><CR>
@@ -561,10 +489,16 @@ nmap $$ $<i}``
 " =====[ Perl programming support ]===========================
 
 " Execute Perl file...
-nmap <silent> W  :!clear;echo;echo;(script -q ~/tmp/script_$$ polyperl %; if (-s ~/tmp/script_$$) then; alert; echo; echo; echo; getraw; endif; rm -f ~/tmp/script_$$ )<CR><CR>
+nmap <silent> W  :!clear;echo;echo;(script -q ~/tmp/script_$$ motleyperl %; if (-s ~/tmp/script_$$) then; alert; echo; echo; echo; getraw; endif; rm -f ~/tmp/script_$$ )<CR><CR>
 
 " Execute Perl file (output to pager)...
-nmap E :!polyperl -m %<CR>
+nmap E :!motleyperl -m %<CR>
+
+augroup PerlTestFile
+    autocmd!
+    autocmd BufEnter  *.t   nmap <silent><buffer>  W  :!clear;echo;echo;(script -q ~/tmp/script_$$ polyperl %; if (-s ~/tmp/script_$$) then; alert; echo; echo; echo; getraw; endif; rm -f ~/tmp/script_$$ )<CR><CR>
+    autocmd BufEnter  *.t   nmap <silent><buffer> E  :!polyperl -m %<CR>
+augroup END
 
 " Execute Perl file (in debugger)...
 nmap Q :!polyperl -d %<CR>
@@ -656,7 +590,9 @@ set iskeyword-=,
 
 " Insert common Perl code structures...
 
-iab udd use Data::Dump 'ddx';<CR>ddx;<LEFT>
+iab udd use Data::Dx; Dx
+nmap dx A<CR>use Data::Dx; Dx;<LEFT>
+iab urd use Regexp::Debugger;
 iab udv use Dumpvalue;<CR>Dumpvalue->new->dumpValues();<ESC>hi
 iab uds use Data::Show;<CR>show
 iab ubm use Benchmark qw( cmpthese );<CR><CR>cmpthese -10, {<CR>};<ESC>O
@@ -669,10 +605,7 @@ iab dbs $DB::single = 1;<ESC>
 "=====[ Emphasize typical mistakes in Vim and Perl files ]=========
 
 " Add a new high-visibility highlight combination...
-highlight WHITE_ON_RED    ctermfg=white  ctermbg=red
-
-" Emphasize undereferenced references...
-call matchadd('WHITE_ON_RED', '_ref[ ]*[[{(]\|_ref[ ]*-[^>]')
+highlight WHITE_ON_RED    ctermfg=White  ctermbg=Red  cterm=bold
 
 " Emphasize typical mistakes a Perl hacker makes in .vim files...
 let g:VimMistakes
@@ -686,70 +619,41 @@ let g:VimMistakes
 \   . '\|'
 \   .     '\_^\s*\zs\k\+('
 
-let g:VimMistakesID = 668
-augroup VimMistakes
+let g:Mistakes = {
+\    'vim'  : g:VimMistakes,
+\}
+
+let g:MistakesID = 668
+augroup Mistakes
     autocmd!
-    autocmd BufEnter  *.vim,*.vimrc   call VimMistakes_AddMatch()
-    autocmd BufLeave  *.vim,*.vimrc   call VimMistakes_ClearMatch()
+    autocmd BufEnter  *.vim,*.vimrc   call s:Mistakes_AddMatch()
+    autocmd BufLeave  *               call s:Mistakes_ClearMatch()
 augroup END
 
-function! VimMistakes_AddMatch ()
-    try | call matchadd('WHITE_ON_RED',g:VimMistakes,10,g:VimMistakesID) | catch | endtry
+function! s:Mistakes_AddMatch ()
+    try | call matchadd('WHITE_ON_RED',g:Mistakes[&filetype],10,g:MistakesID) | catch | endtry
 endfunction
 
-function! VimMistakes_ClearMatch ()
-    try | call matchdelete(g:VimMistakesID) | catch | endtry
+function! s:Mistakes_ClearMatch ()
+    try | call matchdelete(g:MistakesID) | catch | endtry
 endfunction
 
 
-"=====[ Enable quickfix on Perl programs ]=======================
+"=====[ Call :make and then perltests from within a Perl buffer ]========
 
-Nmap ;m [Run :make and any tests on a Perl file]  :make<CR><CR><CR>:call PerlMake_Cleanup()<CR>
-
-function! PerlMake_Cleanup ()
-    " If there are errors, show the first of them...
-    if !empty(getqflist())
-        cc
-
-    " Otherwise, run the test suite as well...
-    else
-        call RunPerlTests()
-    endif
-endfunction
+let &errorformat .= ",%f:%l %tarning:%m,%f:%l:%m"
 
 set makeprg=polyperl\ -vc\ %\ $*
 
-augroup PerlMake
-    autocmd!
-    autocmd BufReadPost quickfix  setlocal number
-                             \ |  setlocal nowrap
-                             \ |  setlocal modifiable
-                             \ |  silent! %s/^[^|]*\//.../
-                             \ |  setlocal nomodifiable
-augroup END
-
-
-" Make it easy to navigate errors (and vimgreps)...
-
-nmap <silent> <RIGHT>         :cnext<CR>
-nmap <silent> <RIGHT><RIGHT>  :cnf<CR><C-G>
-nmap <silent> <LEFT>          :cprev<CR>
-nmap <silent> <LEFT><LEFT>    :cpf<CR><C-G>
-
-
-"=====[ Run a Perl module's test suite ]=========================
-
-let g:PerlTests_program       = 'perltests'   " ...What to call
-let g:PerlTests_search_height = 5             " ...How far up to search
-let g:PerlTests_test_dir      = '/t'          " ...Where to look for tests
-
-augroup Perl_Tests
-    autocmd!
-    autocmd BufEnter *.p[lm]  Nmap <buffer> ;t [Run local test suite] :call RunPerlTests()<CR>
-    autocmd BufEnter *.t      Nmap <buffer> ;t [Run local test suite] :call RunPerlTests()<CR>
-augroup END
-
 function! RunPerlTests ()
+    if !empty(filter(getqflist(),{idx, val -> get(val,'type',"") == ''}))
+        echohl WarningMsg
+        echo "Errors detected, so won't run tests."
+        echohl NONE
+        silent cc 1
+        return
+    endif
+
     " Start in the current directory...
     let dir = expand('%:h')
 
@@ -778,14 +682,46 @@ function! RunPerlTests ()
     echohl None
 endfunction
 
+"autocmd BufEnter *.p[lm],*.t  call SetupPerlTesting()
+"function! SetupPerlTesting ()
+"endfunction
 
-"=====[ Auto-setup for new files ]===========
+let g:PerlTests_program       = 'perltests'   " ...What to call
+let g:PerlTests_search_height = 5             " ...How far up the file hierarchy to search
+let g:PerlTests_test_dir      = '/t'          " ...Where to look for tests
 
-augroup Perl_Setup
+augroup PerlMake
     autocmd!
-    autocmd BufNewFile   *  0r !vim_file_template <afile>
-    autocmd BufNewFile   *  :call search('^[ \t]*[#].*implementation[ \t]\+here')
+
+    autocmd BufReadPost quickfix  setlocal number
+                             \ |  setlocal nowrap
+                             \ |  setlocal modifiable
+                             \ |  silent! %s/^[^|]*\//.../
+                             \ |  setlocal nomodifiable
 augroup END
+
+Nmap <silent> ;t [Test this code] :call RunPerlTests()<CR>
+
+
+
+"=====[ Configure Hier for error highlighting ]===================
+
+highlight HierError    ctermfg=red     cterm=bold
+highlight HierWarning  ctermfg=magenta cterm=bold
+
+let g:hier_highlight_group_qf  = 'HierError'
+let g:hier_highlight_group_qfw = 'HierWarning'
+
+let g:hier_highlight_group_loc  = 'Normal'
+let g:hier_highlight_group_locw = 'HierWarning'
+let g:hier_highlight_group_loci = 'Normal'
+
+"=====[ Placeholder data for templates (for the file_templates.vim plugin) ]=====
+
+let g:FileTemplatesInfo = {
+\   'AUTHOR' : 'Damian Conway',
+\   'EMAIL'  : 'DCONWAY@cpan.org',
+\}
 
 
 "=====[ Proper syntax highlighting for Rakudo files ]===========
@@ -797,11 +733,7 @@ function! CheckForPerl6 ()
         setfiletype perl6
     endif
     if expand('<afile>:e') == 'pod6'
-        highlight Pod6Block_Heading1 cterm=bold,underline
-        highlight Pod6FC_Important cterm=underline
-
         setfiletype pod6
-        syntax enable
     endif
 endfunction
 
@@ -818,8 +750,8 @@ let EOL      = '\s*$'
 
                 " Left     Right      Insert                             Reset cursor
                 " =====    =====      ===============================    ============
-call SmartcomAdd( '<<',    ANYTHING,  '>>',                              {'restore':1} )
-call SmartcomAdd( '<<',    '>>',      "\<CR>\<ESC>O\<TAB>"                             )
+call SmartcomAdd( '<<',    ANYTHING,  "\<BS>\<BS>«"                                    )
+call SmartcomAdd( '>>',    ANYTHING,  "\<BS>\<BS>»"                                    )
 call SmartcomAdd( '?',     ANYTHING,  '?',                               {'restore':1} )
 call SmartcomAdd( '?',     '?',       "\<CR>\<ESC>O\<TAB>"                             )
 call SmartcomAdd( '{{',    ANYTHING,  '}}',                              {'restore':1} )
@@ -832,22 +764,6 @@ call SmartcomAdd( 's{',    ANYTHING,  '}{}xms',                          {'resto
 call SmartcomAdd( 's{',    '}{}xms',  "\<CR>\<C-D>\<ESC>O\<C-D>\<TAB>",                )
 call SmartcomAdd( '\*\*',  ANYTHING,  '**',                              {'restore':1} )
 call SmartcomAdd( '\*\*',  '\*\*',    NOTHING,                                         )
-
-call SmartcomAdd( '''.\{-}''''',    NOTHING,   "\<BS>\<BS>\<ESC>?'\<CR>r\"a",     {'restore':1} )
-call SmartcomAdd( '''.\{-}''''',    '.',       "\<BS>\<BS>\<ESC>?'\<CR>r\"a",     {'restore':-1} )
-call SmartcomAdd( '''.\{-}''''',    '..',      "\<BS>\<BS>\<ESC>?'\<CR>r\"a",     {'restore':-2} )
-
-call SmartcomAdd( 'q\@<!q{.\{-}''''',    NOTHING,   "\<BS>\<BS>\<ESC>?q{\<CR>sqq",     {'restore':1} )
-call SmartcomAdd( 'q\@<!q{.\{-}''''',    '.',       "\<BS>\<BS>\<ESC>?q{\<CR>sqq",     {'restore':-1} )
-call SmartcomAdd( 'q\@<!q{.\{-}''''',    '..',      "\<BS>\<BS>\<ESC>?q{\<CR>sqq",     {'restore':-1} )
-
-call SmartcomAdd( '".\{-}''''',    NOTHING,   "\<BS>\<BS>\<ESC>?\"\<CR>r'a",     {'restore':1} )
-call SmartcomAdd( '".\{-}''''',    '.',       "\<BS>\<BS>\<ESC>?\"\<CR>r'a",     {'restore':-1} )
-call SmartcomAdd( '".\{-}''''',    '..',      "\<BS>\<BS>\<ESC>?\"\<CR>r'a",     {'restore':-2} )
-
-call SmartcomAdd( 'qq{.\{-}''''',    NOTHING,   "\<BS>\<BS>\<ESC>?qq{\<CR>xa",     {'restore':1} )
-call SmartcomAdd( 'qq{.\{-}''''',    '.',       "\<BS>\<BS>\<ESC>?qq{\<CR>xa",     {'restore':-1} )
-call SmartcomAdd( 'qq{.\{-}''''',    '..',      "\<BS>\<BS>\<ESC>?qq{\<CR>xa",     {'restore':-2} )
 
 " Handle single : correctly...
 call SmartcomAdd( '^:\|[^:]:',  EOL,  "\<TAB>" )
@@ -917,6 +833,8 @@ call SmartcomAdd( '^\s*Keynote:',  EOL ,  s:event_template,       {'filetype':'i
 call SmartcomAdd( '^\s*Talk:',     EOL ,  s:event_template,       {'filetype':'itn'} )
 call SmartcomAdd( '^\s*Course:',   EOL ,  s:event_template,       {'filetype':'itn'} )
 
+
+
 "=====[ Itinerary generation ]===========
 
 autocmd BufNewFile,BufRead  *.itn  nnoremap zd !!gen_itinerary_dates<CR>
@@ -969,95 +887,25 @@ endfunction
 cmap <expr> hh CommandExpandAtCol1('hh','helpg ')
 
 
-"=====[ Cut and paste from MacOSX clipboard ]====================
+"=====[ Cut and paste from the system clipboard ]====================
 
 " When in Normal mode, paste over the current line...
-nmap <silent> <C-P> 0d$:call NTransPaste()<CR>
-
-function! NTransPaste()
-    " Remember the last yanked text...
-    let reg_save = @@
-
-    " Grab the MacOSX clipboard contents via a shell command...
-    let clipboard = system("pbtranspaste")
-
-    if clipboard =~ "\<C-K>"
-        let clipboard = substitute(clipboard,"\<C-M>","",  'g')
-        let clipboard = substitute(clipboard,"\<C-K>","\n",'g')
-    else
-        let clipboard = substitute(clipboard,"\<C-M>","\n",'g')
-    endif
-
-    " Put them in the yank buffer...
-    call setreg('@', clipboard, 'V')
-
-    " Paste and visually select them...
-    silent exe "normal! P"
-    silent exe "normal! V".len(substitute(clipboard,'[^\n]','','g'))."jO"
-
-    " Restore the previous yanked text...
-    let @@ = reg_save
-endfunction
+nmap  <C-P> 0d$"*p
 
 " When in Visual mode, paste over the selected region...
-vmap <silent> <C-P> x:call VTransPaste(visualmode())<CR>
-
-function! VTransPaste(type)
-    " Remember the last yanked text...
-    let reg_save = @@
-
-    " Grab the MacOSX clipboard contents via a shell command...
-    let clipboard = system("pbtranspaste")
-    let clipboard = substitute(clipboard,"\<C-M>","",  'g')
-    let clipboard = substitute(clipboard,"\<C-K>","\n",'g')
-
-    " Put them in the yank buffer...
-    call setreg('@', clipboard, a:type)
-
-    " Paste them...
-    silent exe "normal! P"
-    silent exe "normal! V".len(substitute(clipboard,'[^\n]','','g'))."jO"
-
-    " Restore the previous yanked text...
-    let @@ = reg_save
-endfunction
-
+xmap  <C-P> "*pgv
 
 " In Normal mode, yank the entire buffer...
-nmap <silent> <C-C> :w !pbtranscopy<CR><CR>
+nmap <C-C> 1G"*yG``:call YankedToClipboard()<CR>
 
 " In Visual mode, yank the selection...
-vmap <silent> <C-C> :<C-U>call TransCopy(visualmode(), 1)<CR>
+xmap  <C-C> "*y:call YankedToClipboard()<CR>
 
-function! TransCopy(type, ...)
-    " Yank inclusively (but remember the previous setup)...
-    let sel_save = &selection
-    let &selection = "inclusive"
-    let reg_save = @@
-
-    " Invoked from Visual mode, use '< and '> marks.
-    if a:0
-        silent exe "normal! `<" . a:type . "`>y"
-
-    " Or yank a line, if requested...
-    elseif a:type == 'line'
-        silent exe "normal! '[V']y"
-
-    " Or yank a block, if requested...
-    elseif a:type == 'block'
-        silent exe "normal! `[\<C-V>`]y"
-
-    " Or else, just yank the range...
-    else
-        silent exe "normal! `[v`]y"
-    endif
-
-    " Send it to the MacOSX clipboard...
-    call system("pbtranscopy", @@)
-
-    " Restore the previous setup...
-    let &selection = sel_save
-    let @@ = reg_save
+function! YankedToClipboard ()
+    let block_of = (visualmode() == "\<C-V>" ? 'block of ' : '')
+    let N = strlen(substitute(@*, '[^\n]\|\n$', '', 'g')) + 1
+    let lines = (N == 1 ? 'line' : 'lines')
+    echo block_of . N lines 'yanked to clipboard'
 endfunction
 
 
@@ -1163,92 +1011,30 @@ highlight GRAMMARIAN_ERRORS_MSG   ctermfg=red   cterm=bold
 highlight GRAMMARIAN_CAUTIONS_MSG ctermfg=white cterm=bold
 
 
-"=====[ Add or subtract comments ]===============================
-
-" Work out what the comment character is, by filetype...
-autocmd FileType             *sh,awk,python,perl,perl6,ruby    let b:cmt = exists('b:cmt') ? b:cmt : '#'
-autocmd FileType             vim                               let b:cmt = exists('b:cmt') ? b:cmt : '"'
-autocmd BufNewFile,BufRead   *.vim,.vimrc                      let b:cmt = exists('b:cmt') ? b:cmt : '"'
-autocmd BufNewFile,BufRead   *                                 let b:cmt = exists('b:cmt') ? b:cmt : '#'
-autocmd BufNewFile,BufRead   *.p[lm],.t                        let b:cmt = exists('b:cmt') ? b:cmt : '#'
-
-" Work out whether the line has a comment then reverse that condition...
-function! ToggleComment ()
-    " What's the comment character???
-    let comment_char = exists('b:cmt') ? b:cmt : '#'
-
-    " Grab the line and work out whether it's commented...
-    let currline = getline(".")
-
-    " If so, remove it and rewrite the line...
-    if currline =~ '^' . comment_char
-        let repline = substitute(currline, '^' . comment_char, "", "")
-        call setline(".", repline)
-
-    " Otherwise, insert it...
-    else
-        let repline = substitute(currline, '^', comment_char, "")
-        call setline(".", repline)
-    endif
-endfunction
-
-" Toggle comments down an entire visual selection of lines...
-function! ToggleBlock () range
-    " What's the comment character???
-    let comment_char = exists('b:cmt') ? b:cmt : '#'
-
-    " Start at the first line...
-    let linenum = a:firstline
-
-    " Get all the lines, and decide their comment state by examining the first...
-    let currline = getline(a:firstline, a:lastline)
-    if currline[0] =~ '^' . comment_char
-        " If the first line is commented, decomment all...
-        for line in currline
-            let repline = substitute(line, '^' . comment_char, "", "")
-            call setline(linenum, repline)
-            let linenum += 1
-        endfor
-    else
-        " Otherwise, encomment all...
-        for line in currline
-            let repline = substitute(line, '^\('. comment_char . '\)\?', comment_char, "")
-            call setline(linenum, repline)
-            let linenum += 1
-        endfor
-    endif
-endfunction
-
-" Set up the relevant mappings
-nmap <silent> # :call ToggleComment()<CR>j0
-vmap <silent> # :call ToggleBlock()<CR>
-
-
 "=====[ Highlight cursor ]===================
 
 " Inverse highlighting for cursor...
-highlight CursorInverse   term=inverse ctermfg=black ctermbg=white
+highlight CursorInverse ctermfg=black ctermbg=white
 
 " Set up highlighter at high priority (i.e. 99)
-call matchadd('CursorInverse', '\%#', 99)
+call matchadd('CursorInverse', '\%#.', 99)
 
 " Need an invisible cursor column to make it update on every cursor move...
 " (via the visualguide.vim plugin, so as to play nice)
 runtime plugin/visualsmartia.vim
 call VG_Show_CursorColumn('off')
 
-
 "=====[ Highlight row and column on request ]===================
 
 " Toggle cursor row highlighting on request...
-highlight CursorLine   term=bold ctermfg=black ctermbg=cyan  cterm=bold
-Nmap <silent> ;R [Toggle cursor line highlighting] :set cursorline!<CR>
+highlight CursorLine   term=bold ctermbg=darkgrey ctermfg=yellow  cterm=bold
+Nmap <silent> ;c [Toggle cursor line highlighting] :set cursorline!<CR>
 
 " Toggle cursor column highlighting on request...
 " (via visualguide.vim plugin, so as to play nice)
-nmap <silent> \  :silent call VG_Show_CursorColumn('flip')<CR>
-vmap <silent> \  :<C-W>silent call VG_Show_CursorColumn('flip')<CR>gv
-imap <silent> <C-\>  <C-O>:silent call VG_Show_CursorColumn('flip')<CR>
+nmap     <silent> \  :silent call VG_Show_CursorColumn('flip')<CR>
+xnoremap <silent> \  :<C-W>silent call VG_Show_CursorColumn('flip')<CR>gv
+imap     <silent> <C-\>  <C-O>:silent call VG_Show_CursorColumn('flip')<CR>
 
 
 "=====[ Highlight spelling errors on request ]===================
@@ -1298,8 +1084,8 @@ function! Uniq (...) range
 endfunction
 
 " Only in visual mode...
-vmap  q :call Uniq()<CR>
-vmap  Q :call Uniq('ignore whitespace')<CR>
+xnoremap  q :call Uniq()<CR>
+xnoremap  Q :call Uniq('ignore whitespace')<CR>
 
 
 "====[ Make normalized search use NFKC ]=======
@@ -1357,15 +1143,15 @@ function! LEI_format () range
     let has_classical = match(lines, '|') >= 0
     let field_template
     \   = has_classical
-     \    ? '%-' . max_width[0] . 's  =>  %-' . max_width[1] . 's  |  %s'
-      \   : '%-' . max_width[0] . 's  =>  %-s'
+    \    ? '%-' . max_width[0] . 's  =>  %-' . max_width[1] . 's  |  %s'
+    \   : '%-' . max_width[0] . 's  =>  %-s'
 
     " Reformat each line...
     for field_num in range(len(fields))
         let updated_line
         \   = has_classical
-         \    ? printf(field_template, fields[field_num][0], fields[field_num][1], fields[field_num][2])
-          \   : printf(field_template, fields[field_num][0], fields[field_num][1])
+        \    ? printf(field_template, fields[field_num][0], fields[field_num][1], fields[field_num][2])
+        \   : printf(field_template, fields[field_num][0], fields[field_num][1])
         call setline(from + field_num, substitute(updated_line,'\s*$','',''))
     endfor
 endfunction
@@ -1394,8 +1180,8 @@ augroup FoldSub
     autocmd BufEnter * nmap <silent> <expr>             zv  FS_FoldAroundTarget(vim_sub_pat.'\\|^\s*".*',{'context':0, 'folds':'invisible'})
 augroup END
 
-" Show only C #includes...
-nmap <silent> <expr>  zu  FS_FoldAroundTarget('^\s*use\s\+\S.*;',{'context':1})
+" Show only 'use' statements
+nmap <silent> <expr>  zu  FS_FoldAroundTarget('\(^\s*\(use\\|no\)\s\+\S.*;\\|\<require\>\s\+\S\+\)',{'context':1})
 
 
 "====[ Do a command, then restore the cursor ]======
@@ -1407,8 +1193,7 @@ function! Static_impl (cmd)
     normal ``
 endfunction
 
-
-"====[ Show when lines extend past column 80 ]=================================>-<=====================
+"====[ Show when lines extend past column 80 ]=================================>!<============
 
 highlight ColorColumn ctermfg=208 ctermbg=Black
 
@@ -1421,7 +1206,7 @@ function! MarkMargin (on)
         unlet b:MarkMargin
     endif
     if a:on
-        let b:MarkMargin = matchadd('ColorColumn', '\%81v\s*\S', 100)
+        let b:MarkMargin = matchadd('ColorColumn', '\%81v\s*\zs\S', 100)
     endif
 endfunction
 
@@ -1432,12 +1217,10 @@ augroup MarkMargin
 augroup END
 
 
-"====[ Accelerated up and down on wrapped lines ]============
+"====[ Accelerated up and down on wrapped lines, but counted motions use actual lines ]============
 
-"nnoremap  j  gj
-"nnoremap  k  gk
-nmap j <Plug>(accelerated_jk_gj)
-nmap k <Plug>(accelerated_jk_gk)
+nmap <expr> j  v:count ? 'j' : '<Plug>(accelerated_jk_gj)'
+nmap <expr> k  v:count ? 'k' : '<Plug>(accelerated_jk_gk)'
 
 
 "====[ Pathogen support ]======================
@@ -1451,22 +1234,16 @@ call pathogen#helptags()
 " Need to load this early, so we can override its nmapped ++
 runtime plugin/eqalignsimple.vim
 
-vmap <silent><expr> ++  VMATH_YankAndAnalyse()
-nmap <silent>       ++  vip++
-
-
-"====[ Configure eqalignsimple ]=================================
-"
-"EQAS_align('\S:',         '',   '\s')
-"EQAS_align('[[:punct:]]', '',   '\s')
+xnoremap <expr> ++  VMATH_YankAndAnalyse()
+nmap            ++  vip++
 
 
 
 "====[ Make digraphs easier to get right (various versions) ]=================
 
-inoremap <expr>  <C-J>       HUDG_GetDigraph()
+"inoremap <expr>  <C-J>       HUDG_GetDigraph()
 inoremap <expr>  <C-K>       BDG_GetDigraph()
-inoremap <expr>  <C-L>       HUDigraphs()
+"inoremap <expr>  <C-L>       HUDigraphs()
 
 function! HUDigraphs ()
     digraphs
@@ -1484,13 +1261,13 @@ nnoremap ///  /<C-R>/\<BAR>
 
 "====[ Toggle between lists and bulleted lists ]======================
 
-Nmap <silent> ;l [Toggle list format (bullets <-> commas)]  :call ListTrans_toggle_format()<CR>f
-vmap <silent> ;l                                            :call ListTrans_toggle_format('visual')<CR>f
+Nmap     <silent> ;l [Toggle list format (bullets <-> commas)]  :call ListTrans_toggle_format()<CR>f
+xnoremap <silent> ;l                                            :call ListTrans_toggle_format('visual')<CR>f
 
 
 "=====[ Select a table column in visual mode ]========================
 
-vnoremap <silent><expr> c  VTC_select()
+xnoremap <silent><expr> c  VTC_select()
 
 
 "=====[ Make * respect smartcase and also set @/ (to enable 'n' and 'N') ]======
@@ -1512,12 +1289,12 @@ nmap <silent><expr>  q  g:GTF_goto_file('`')
 augroup Undouble_Completions
     autocmd!
     autocmd CompleteDone *  call Undouble_Completions()
-augroup None
+augroup END
 
 function! Undouble_Completions ()
     let col  = getpos('.')[2]
     let line = getline('.')
-    call setline('.', substitute(line, '\(\k\+\)\%'.col.'c\zs\1', '', ''))
+    call setline('.', substitute(line, '\(\.\?\k\+\)\%'.col.'c\zs\1', '', ''))
 endfunction
 
 
@@ -1568,13 +1345,41 @@ function! SmartOctothorpe ()
 endfunction
 
 
-"=====[ Improve ruler with optional word counts]=================================
+"=====[ Improve ruler with various useful information]=================================
 
-let g:BRF_new_rulerformat = '%22(%l,%v %= %{BRF_WordCount()}w  %P%)'
+let g:BRF_new_rulerformat = '%40(%#NonText# %v⇢ %l⇣ %= %{BRF_ErrStatus()}  %<%{BRF_WordCount()}⁞ %L⤓  %P%)'
+
+function! BRF_ErrStatus()
+    " Count errors and warnings in quickfix list...
+    let [errors, warnings] = [0,0]
+    for type in map(getqflist(), {key, val -> get(val, "type", "?")})
+        if     type == "" || type == 'e'  |  let errors   += 1
+        elseif               type == 'w'  |  let warnings += 1
+        endif
+    endfor
+
+    " Count matches and distinct files in location list...
+    let loclist  = getloclist(0)
+    let matches  = len(loclist)
+    let files    = {}
+    for locelem in loclist
+        let files[locelem.bufnr] = 1
+    endfor
+    let buffers  = len(files)
+
+    " Generate report for ruler...
+    let status = []
+    if errors   | call add(status, errors   . 'ꜝ') | endif
+    if warnings | call add(status, warnings . 'ʷ') | endif
+    if matches  | call add(status, matches  . 'ᵐ ' . buffers . 'ᵇ') | endif
+
+    return join(status, ' ')
+endfunction
+
 let g:BRF_interval = 1
-
 function! BRF_WordCount()
-    " Skip an increasing percentage of increasingly expensive updates, as the file gets longer
+
+    " Skip an increasing percentage of increasingly expensive updates, as the file gets longer...
     let g:BRF_interval += 1
     if exists("b:BRF_wordcount")
         if g:BRF_interval < b:BRF_wordcount / 500
@@ -1586,6 +1391,7 @@ function! BRF_WordCount()
     " Otherwise, recount the file...
     if &modified || !exists("b:BRF_wordcount")
         let lines = join(getline(1,'$'), ' ')
+        let lines = substitute(lines, '\d\.\d',         'X', 'g')
         let lines = substitute(lines, '\a[''-]\a',      'X', 'g')
         let lines = substitute(lines, '[[:alnum:]]\+',  'X', 'g')
         let lines = substitute(lines, '[^[:alnum:]]\+', '',  'g')
@@ -1593,7 +1399,7 @@ function! BRF_WordCount()
     endif
 
     " Return the precise count...
-    return b:BRF_wordcount
+    return ' ' . b:BRF_wordcount
 endfunction
 
 function! BRF_ToggleRuler ()
@@ -1620,7 +1426,7 @@ highlight SpecialKey   cterm=bold ctermfg=Blue
 
 "======[ Add a Y command for incremental yank in Visual mode ]==============
 
-vnoremap <silent>       Y   <ESC>:silent let @y = @"<CR>gv"Yy:silent let @" = @y<CR>
+xnoremap <silent>       Y   <ESC>:silent let @y = @"<CR>gv"Yy:silent let @" = @y<CR>
 nnoremap <silent>       YY  :call Incremental_YY()<CR>
 nnoremap <silent><expr> Y         Incremental_Y()
 
@@ -1646,14 +1452,14 @@ endfunction
 
 "======[ Add a $$ command in Visual mode ]==============================
 
-vmap <silent>       ]   $"yygv_$
-vmap <silent><expr> _$  Under_dollar_visual()
+xnoremap <silent>       ]   $"yygv_$
+xnoremap <silent><expr> _$  Under_dollar_visual()
 
 function! Under_dollar_visual ()
     " Locate block being shifted...
     let maxcol = max(map(split(@y, "\n"), 'strlen(v:val)')) + getpos("'<")[2] - 2
 
-    " Return the selction that does the job...
+    " Return the selection that does the job...
     return maxcol . '|'
 endfunction
 
@@ -1685,7 +1491,7 @@ function! DC_DiffChanges ()
     highlight Normal ctermfg=grey
     let initial_state = b:DC_initial_state
     set diffopt=context:2,filler,foldcolumn:0
-    set fillchars=fold: 
+"    set fillchars=fold:ÃÂ 
     set foldcolumn=0
     setlocal foldtext=DC_LineNumberOnly()
     set number
@@ -1696,7 +1502,7 @@ function! DC_DiffChanges ()
     silent call setline(1, initial_state)
     diffthis
     set diffopt=context:2,filler,foldcolumn:0
-    set fillchars=fold: 
+"    set fillchars=fold:ÃÂ 
     set foldcolumn=0
     setlocal foldtext=DC_LineNumberOnly()
     set number
@@ -1724,6 +1530,9 @@ endfunction
 set grepprg=ag\ --vimgrep\ $*
 set grepformat=%f:%l:%c:%m
 
+" Also use ag in GVI...
+let g:GVI_use_ag = 1
+
 
 "=====[ Decute startify ]================
 
@@ -1739,17 +1548,308 @@ let g:changes_autocmd=1
 
 "=====[ Make netrw more instantly useful ]============
 
-let g:netrw_sort_by='time'
-let g:netrw_sort_direction='reverse'
+let g:netrw_sort_by        = 'time'
+let g:netrw_sort_direction = 'reverse'
+let g:netrw_banner         = 0
+let g:netrw_liststyle      = 3
+let g:netrw_browse_split   = 3
+let g:netrw_fastbrowse     = 1
+let g:netrw_sort_by        = 'name'
+let g:netrw_sort_direction = 'normal'
 
 
-"=====[ Config ditto ]=============
+"=====[ Pod6 proofing ]==========
 
-highlight Ditto ctermfg=red
-
-let g:ditto_hlgroups = ['Ditto1']
-let g:ditto_autocmd = "InsertLeave"
+nmap <silent> ;p :silent call Pod6_ToggleProofing()<CR>:silent call MarkMargin(0)<CR><C-L>
 
 
-let g:ditto_min_word_length = 6
-let g:ditto_min_repetitions = 2
+"======[ Breakindenting ]========
+
+set breakindentopt=shift:2,sbr
+set showbreak=↪
+set breakindent
+set linebreak
+
+
+"======[ Writing support ]=======
+
+augroup PiP6
+autocmd!
+
+    autocmd BufEnter *.pod6   iab P6 Perl 6
+    autocmd BufEnter *.pod6   iab P5 Perl 5
+
+    autocmd BufEnter *.pod6   iab h1 =head1
+    autocmd BufEnter *.pod6   iab h2 =head2
+    autocmd BufEnter *.pod6   iab h3 =head3
+    autocmd BufEnter *.pod6   iab h4 =head4
+    autocmd BufEnter *.pod6   iab h5 =head5
+
+    for L in split('C I B R')
+        let l = tolower(L)
+        exec 'autocmd BufEnter *.pod6   xnoremap <TAB>' . l . ' "vygvc' . L . '<C-R><C-R>=P6_delim("")<CR><ESC>'
+        exec 'autocmd BufEnter *.pod6   nmap     <TAB>' . l . ' viw<TAB>' . l
+    endfor
+
+    autocmd BufEnter *.pod6   xnoremap <TAB>m  "vygvcM<C-R><C-R>=P6_delim('T:')<CR><ESC>
+    autocmd BufEnter *.pod6   nmap     <TAB>m  viw<TAB>m
+
+    function! P6_delim (prefix)
+        let regy = getreg('v')
+        if regy =~ '[<>]'
+            return '«' . a:prefix . regy . '»'
+        else
+            return '<' . a:prefix . regy . '>'
+        endif
+    endfunction
+
+    call SmartcomAdd(               '''',  '',    "\<BS>‘")
+    call SmartcomAdd( '\(\w\|[‘.!?]\)''',  '',    "\<BS>’")
+    call SmartcomAdd(                '"',  '',    "\<BS>“")
+    call SmartcomAdd(  '\(\w\|[“.!?]\)"',  '',    "\<BS>”")
+    call SmartcomAdd(     '\.\@<!\.\.\.',  '',    "\<BS>\<BS>\<BS>…")
+    call SmartcomAdd(          '--',       '',    "\<BS>\<BS>—")
+
+augroup END
+
+
+"=====[ Automate syntax highlighting ]===============================
+
+" Keep long lines from slowing Vim too much
+set synmaxcol=200
+
+augroup Autosyntax_actions
+    autocmd!
+    autocmd FileType netrw  syntax on
+    autocmd BufEnter   *    call AS_Enter()
+    autocmd BufLeave   *    syntax off
+augroup END
+
+command! -complete=filetype -nargs=+ Autosyntax call AS_set_active(<q-args>)
+
+let g:AS_active_in = {}
+
+function! AS_set_active(list)
+    for ft in split(a:list, '\s\+')
+        let g:AS_active_in[ft] = 1
+        let g:AS_active_in['.'.ft] = 1
+    endfor
+endfunction
+
+Autosyntax itn
+Autosyntax pod6
+Autosyntax todo
+Autosyntax diff patch
+
+function! AS_Enter ()
+    let suffix = '.' . expand('<afile>:e')
+    if get(g:AS_active_in, &filetype, 0) || suffix != '.' && get(g:AS_active_in, suffix, 0)
+        syntax enable
+    endif
+endfunction
+
+nmap <silent> ;y   :call AS_toggle()<CR>
+
+function! AS_toggle ()
+    let suffix = '.' . expand('%:e')
+    if exists('g:syntax_on')
+        syntax off
+        let g:AS_active_in[&filetype] = 0
+        let g:AS_active_in[suffix]    = 0
+    else
+        syntax enable
+        let g:AS_active_in[&filetype] = 1
+        let g:AS_active_in[suffix]    = 1
+    endif
+endfunction
+
+
+"=====[ Double quote Perl single quotes and vice versa ]==================
+
+call SmartcomAdd(      '''[^"]*"',  NOTHING,  "\<ESC>?'\<CR>:nohlsearch\<CR>r\"a",        {'restore':1+1} )
+call SmartcomAdd( 'q\@<!q{[^"]*"',  NOTHING,  "\<BS>}\<ESC>?q{\<CR>:nohlsearch\<CR>sqq",  {'restore':1+2} )
+call SmartcomAdd(     '"[^'']*''',  NOTHING,  "\<ESC>?\"\<CR>:nohlsearch\<CR>r'a",        {'restore':1+1} )
+call SmartcomAdd(   'qq{[^'']*''',  NOTHING,  "\<BS>}\<ESC>?qq{\<CR>:nohlsearch\<CR>2sq", {'restore':1+1} )
+
+"=====[ Translate common currencies ]==================
+call SmartcomAdd('\<EUR', NOTHING, "\<ESC>xxs€" )
+call SmartcomAdd('\<GBP', NOTHING, "\<ESC>xxs£" )
+call SmartcomAdd('\<ILS', NOTHING, "\<ESC>xxs₪" )
+call SmartcomAdd('\<INR', NOTHING, "\<ESC>xxs₨" )
+call SmartcomAdd('\<JPY', NOTHING, "\<ESC>xxs¥" )
+call SmartcomAdd('\<YEN', NOTHING, "\<ESC>xxs¥" )
+
+"=====[ Park cursor in vimpoint files ]========================
+
+augroup VimpointCursor
+    autocmd!
+    autocmd  BufEnter  *.vp*   :normal 0
+augroup END
+
+
+"=====[ Let <UP> and <DOWN> iterate the quickfix buffer list too ]=========
+
+let g:ArrNav_arglist_fallback = 1
+
+
+"=====[ Blockwise mode on : in visual mode ]===============================
+
+let g:Blockwise_autoselect = 1
+
+
+"=====[ Make jump-selections work better in visual block mode ]=================
+
+xnoremap <expr>  G   'G' . virtcol('.') . "\|"
+xnoremap <expr>  }   '}' . virtcol('.') . "\|"
+xnoremap <expr>  {   '{' . virtcol('.') . "\|"
+
+
+"=====[ Bracketed paste mode ]=======================================
+
+if &term =~ "xterm.*"
+    let &t_ti = &t_ti . "\e[?2004h"
+    let &t_te = "\e[?2004l" . &t_te
+
+    function! XTermPasteBegin(ret)
+        set pastetoggle=<Esc>[201~
+        set paste
+        return a:ret
+    endfunction
+
+    map <expr> <Esc>[200~ XTermPasteBegin("i")
+    imap <expr> <Esc>[200~ XTermPasteBegin("")
+    xmap <expr> <Esc>[200~ XTermPasteBegin("c")
+
+    cmap        <Esc>[200~ <nop>
+    cmap        <Esc>[201~ <nop>
+endif
+
+
+"=====[ Configure ALE ]==================
+" Install the following:
+"     https://github.com/w0rp/ale
+"     https://github.com/jceb/vim-hier
+
+highlight AleError    ctermfg=red     cterm=bold
+highlight AleWarning  ctermfg=magenta cterm=bold
+
+augroup ALE_Autoconfig
+    au!
+    autocmd User GVI_Start  silent call Stop_ALE()
+    autocmd User PV_Start   silent call Stop_ALE()
+    autocmd User PV_End     silent call Start_ALE()
+    autocmd User ALELint    silent HierUpdate
+augroup END
+
+let g:ale_set_loclist          = 0
+let g:ale_set_quickfix         = 1
+let g:ale_set_signs            = 0
+let g:ale_linters              = { 'perl': ['perl'] }
+let g:ale_perl_perl_executable = 'polyperl'
+let g:ale_perl_perl_options    = '-cw -Ilib'
+
+Nmap <silent> ;m [Toggle automake on Perl files] :call Toggle_ALE()<CR>
+
+function! Start_ALE ()
+    ALEEnable
+    HierStart
+endfunction
+
+function! Stop_ALE ()
+    silent call s:ChangeProfile(&filetype)
+    ALEDisable
+    HierStop
+    call setqflist([])
+    redraw!
+endfunction
+
+function! Toggle_ALE ()
+    if g:ale_enabled
+        call Stop_ALE()
+    else
+        call Start_ALE()
+    endif
+    echo 'Error highlighting ' . (g:ale_enabled ? 'on' : 'off')
+endfunction
+
+"=====[ Adjust terminal profile for various cases ]=========
+
+augroup AutoProfile
+    au!
+    autocmd User ALELint            call s:AutoChangeProfile()
+    autocmd BufEnter *              call s:AutoChangeProfile()
+    autocmd VimLeave *              call s:ChangeProfile('default')
+augroup END
+
+let s:Profile = {
+\    'default' : 'yellow',
+\    'perl6'   : 'blue',
+\    'haskell' : 'futuristic',
+\    'java'    : 'dubya',
+\    'fortran' : 'typewriter',
+\}
+
+function! s:AutoChangeProfile ()
+    if empty(filter(getqflist(),{idx, val -> get(val,'bufnr',"") == bufnr('%')}))
+        call s:ChangeProfile(&filetype)
+    else
+        call s:ChangeProfileErrors(&filetype)
+    endif
+endfunction
+
+function! s:ChangeProfile (name)
+    let bg = get(s:Profile, a:name, s:Profile['default'])
+    silent exec "!terminal_profile '" . bg . "'"
+endfunction
+
+function! s:ChangeProfileErrors (name)
+    let bg = get(s:Profile, a:name, s:Profile['default'])
+    silent exec "!terminal_profile '" . bg . " errors'"
+endfunction
+
+
+"=====[ Select a completion from the menu without inserting a <CR> ]========
+
+inoremap <expr> <CR> ((pumvisible())?("\<C-Y>"):("\<CR>"))
+
+
+"=====[ Change cursor during insertion ]======================
+
+let &t_SI="\033[5 q" " start insert mode, switch to blinking cursor
+let &t_EI="\033[1 q" " end insert mode, back to square cursor
+
+
+"=====[ Completion during search (via Command window) ]======================
+
+function! s:search_mode_start()
+    cnoremap <tab> <c-f>:resize 1<CR>a<c-n>
+    let s:old_complete_opt = &completeopt
+    let s:old_last_status = &laststatus
+    set completeopt-=noinsert
+    set laststatus=0
+endfunction
+
+function! s:search_mode_stop()
+    try
+        silent cunmap <tab>
+    catch
+    finally
+        let &completeopt = s:old_complete_opt
+        let &laststatus  = s:old_last_status
+    endtry
+endfunction
+
+augroup SearchCompletions
+    autocmd!
+    autocmd CmdlineEnter [/\?] call <SID>search_mode_start()
+    autocmd CmdlineLeave [/\?] call <SID>search_mode_stop()
+augroup END
+
+
+"=====[ Make multi-selection incremental search prettier ]======================
+
+augroup SearchIncremental
+    autocmd!
+    autocmd CmdlineEnter [/\?]   highlight  Search  ctermfg=DarkRed   ctermbg=Black cterm=NONE
+    autocmd CmdlineLeave [/\?]   highlight  Search  ctermfg=White ctermbg=Black cterm=bold
+augroup END
