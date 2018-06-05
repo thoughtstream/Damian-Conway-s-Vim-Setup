@@ -92,7 +92,7 @@ function! ForAllMatches (command, options)
         endif
     endif
     let l:command = ':let @' . g:YankMatches#ClipboardRegister . ' = yanked'
-    execute 'normal! ' . l:command . "\<cr>
+    execute 'normal! ' . l:command . "\<cr>"
 
     " Return to original position...
     call setpos('.', orig_pos)
