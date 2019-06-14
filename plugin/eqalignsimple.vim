@@ -86,8 +86,9 @@ function EQAS_Align (mode, ...) range
         let curr_line = getline(line_num)
         let curr_char = curr_line[start_pos]
 
-        "Classify the char under the cursor as space or keyword or other
+        "Classify the char under the cursor as space or colon or keyword or other
         let sym_type = curr_char =~ '\s' ? '\s'
+        \            : curr_char =~ ':'  ? ':'
         \            : curr_char =~ '\k' ? '\k'
         \            :                     '\k\@!\S'
 
@@ -162,8 +163,8 @@ endfunction
 
 nmap <silent> =     :call EQAS_Align('nmap')<CR>
 nmap <silent> ==    :call EQAS_Align('nmap', {'paragraph':1} )<CR>
-nmap <silent> +     :call EQAS_Align('nmap', {'cursor':1} )<CR>:%s/\s\+$//<CR>``
-nmap <silent> ++    :call EQAS_Align('nmap', {'cursor':1, 'paragraph':1} )<CR>:%s/\s\+$//<CR>``
+nmap <silent> +     :call EQAS_Align('nmap', {'cursor':1} )<CR>:%s/\s\+$//e<CR>``
+nmap <silent> ++    :call EQAS_Align('nmap', {'cursor':1, 'paragraph':1} )<CR>:%s/\s\+$//e<CR>``
 xmap <silent> =     :call EQAS_Align('xmap')<CR>
 xmap <silent> +     :call EQAS_Align('xmap', {'cursor':1} )<CR>
 
