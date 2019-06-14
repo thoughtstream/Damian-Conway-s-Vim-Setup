@@ -58,7 +58,7 @@ function! EQAS_Match_On (pattern)
 endfunction
 
 " Configure for each filetype (global, so others can extend it)
-let g:EqAlign_default_match = {
+let g:EQAS_default_match = {
 \    'perl'  : s:LINE_WITH_EQ_ARROW,
 \    'perl6' : s:LINE_WITH_EQ_ARROW,
 \    'ruby'  : s:LINE_WITH_EQ_ARROW,
@@ -71,8 +71,8 @@ let g:EqAlign_default_match = {
 function EQAS_Align (mode, ...) range
     let option = a:0 ? a:1 : {}
 
-    "What symbol to align by default (determined by filetype and g:EqAlign_default_match)
-    let search_pat = get(g:EqAlign_default_match, &filetype, s:LINE_WITH_EQ_TXT)
+    "What symbol to align by default (determined by filetype and g:EQAS_default_match)
+    let search_pat = get(g:EQAS_default_match, &filetype, s:LINE_WITH_EQ_TXT)
 
     "Handle config options on search...
     if strlen(get(option,'pattern',""))
