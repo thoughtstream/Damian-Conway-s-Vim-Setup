@@ -1,11 +1,11 @@
 " Vim global plugin for yanking or deleting all lines with a match
-" Maintainer:	Damian Conway
-" License:	This file is placed in the public domain.
+" Maintainer:   Damian Conway
+" License:      This file is placed in the public domain.
 
-if exists("loaded_delete_matches")
+if exists("loaded_yankmatches")
     finish
 endif
-let loaded_delete_matches = 1
+let loaded_yankmatches = 1
 
 " Preserve external compatibility options, then enable full vim compatibility...
 let s:save_cpo = &cpo
@@ -27,12 +27,17 @@ set cpo&vim
 " Change these if you want different commands for the specified actions...
 "
 nmap <silent> dm  :     call ForAllMatches('delete', {})<CR>
+nmap <silent> dim :     call ForAllMatches('delete', {'match_only':1})<CR>
 nmap <silent> DM  :     call ForAllMatches('delete', {'inverse':1})<CR>
 nmap <silent> ym  :     call ForAllMatches('yank',   {})<CR>
 nmap <silent> YM  :     call ForAllMatches('yank',   {'inverse':1})<CR>
+nmap <silent> yim :     call ForAllMatches('yank',   {'match_only':1})<CR>
+
 xmap <silent> dm  :<C-U>call ForAllMatches('delete', {'visual':1})<CR>
+xmap <silent> dim :<C-U>call ForAllMatches('delete', {'visual':1, 'match_only':1})<CR>
 xmap <silent> DM  :<C-U>call ForAllMatches('delete', {'visual':1, 'inverse':1})<CR>
 xmap <silent> ym  :<C-U>call ForAllMatches('yank',   {'visual':1})<CR>
+xmap <silent> yim :<C-U>call ForAllMatches('yank',   {'visual':1, 'match_only':1})<CR>
 xmap <silent> YM  :<C-U>call ForAllMatches('yank',   {'visual':1, 'inverse':1})<CR>
 
 function! ForAllMatches (command, options)
@@ -47,11 +52,21 @@ function! ForAllMatches (command, options)
     " Are we inverting the selection???
     let inverted = get(a:options, 'inverse', 0)
 
+    " Are we keeping only the matched text???
+    let match_only = get(a:options, 'match_only', 0)
+
     " Are we modifying the buffer???
     let deleting = a:command == 'delete'
 
     " Honour smartcase (which :lvimgrep doesn't, by default)
     let sensitive = &ignorecase && &smartcase && @/ =~ '\u' ? '\C' : ''
+
+    " No match? Then nothing to do...
+    if !search(sensitive . @/, 'nwc')
+        redraw
+        unsilent echo 'Nothing to ' . a:command . ' (no matches found for /'. @/ .'/)'
+        return
+    endif
 
     " Identify the lines to be operated on...
     exec 'silent lvimgrep /' . sensitive . @/ . '/j %'
@@ -69,13 +84,35 @@ function! ForAllMatches (command, options)
 
     " Filter the original lines...
     let yanked = ""
+    let submatch_count = 0
     for line_num in matched_line_nums
         " Remember yanks or deletions...
-        let yanked = getline(line_num) . "\n" . yanked
+        let next_line = getline(line_num)
+        if match_only
+            let pos = 0
+            let matched_strs = ""
+            while pos < strlen(next_line)
+                let [nextmatch, from, to] = matchstrpos(next_line, sensitive . @/, pos)
+                if from < 0
+                    break
+                endif
+                let pos = to + 1
+                let matched_strs .= nextmatch . "\n"
+                let submatch_count += 1
+            endwhile
+            let matched_strs = substitute(matched_strs, '\n$', '', '')
+        else
+            let matched_strs = next_line
+        endif
+        let yanked = matched_strs . "\n" . yanked
 
         " Delete buffer lines if necessary...
         if deleting
-            exec line_num . 'delete'
+            if match_only
+                exec 'silent ' . line_num . 's/' . sensitive . @/ . '//g'
+            else
+                exec line_num . 'delete'
+            endif
         endif
     endfor
 
@@ -92,7 +129,7 @@ function! ForAllMatches (command, options)
         endif
     endif
     let l:command = ':let @' . g:YankMatches#ClipboardRegister . ' = yanked'
-    execute 'normal! ' . l:command . "\<cr>
+    execute 'normal! ' . l:command . "\<cr>"
 
     " Return to original position...
     call setpos('.', orig_pos)
@@ -101,7 +138,13 @@ function! ForAllMatches (command, options)
     redraw
     let match_count = len(matched_line_nums)
     if match_count == 0
-        unsilent echo 'Nothing to ' . a:command . ' (no matches found)'
+        unsilent echo 'Nothing to ' . a:command . ' (no matches found for /'. @/ .'/)'
+    elseif match_only && deleting
+        unsilent echo submatch_count . ' match' . (submatch_count > 1 ? 'es' : '')
+        \           . ' on ' . match_count . ' line' . (match_count > 1 ? 's' : '') . ' deleted'
+    elseif match_only
+        unsilent echo submatch_count . ' match' . (submatch_count > 1 ? 'es' : '')
+        \           . ' on ' . match_count . ' line' . (match_count > 1 ? 's' : '') . ' yanked'
     elseif deleting
         unsilent echo match_count . (match_count > 1 ? ' fewer lines' : ' less line')
     else

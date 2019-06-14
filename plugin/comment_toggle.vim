@@ -88,6 +88,7 @@ function! ToggleCommentV () range
             call ToggleCommentVisual(comm_char, comm_delim, a:firstline, a:lastline, col_left-1, col_right-1)
         else
             call ToggleCommentVisualBlock(comm_char, a:firstline, a:lastline, col_left-1, col_right-1)
+            normal gv
         endif
     endif
 endfunction

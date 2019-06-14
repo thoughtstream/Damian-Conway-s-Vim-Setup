@@ -96,7 +96,7 @@
 "##      3o  -->  ³                                                          ##
 "##                                                                          ##
 "##                                                                          ##
-"##  5. Some obvious pictographic alternatives                               ##
+"##  5. Some obvious pictographic additions and alternatives                 ##
 "##     (Generally, doubling the letter produces the common variant)         ##
 "##                                                                          ##
 "##      ++  -->  ±                                                          ##
@@ -112,6 +112,10 @@
 "##      11  -->  ¹                                                          ##
 "##      22  -->  ²                                                          ##
 "##      33  -->  ³                                                          ##
+"##                                                                          ##
+"##      1s  -->  ₁                                                          ##
+"##      2s  -->  ₂                                                          ##
+"##      3s  -->  ₃                                                          ##
 "##                                                                          ##
 "##      14  -->  ¼                                                          ##
 "##      12  -->  ½                                                          ##
@@ -176,11 +180,11 @@ function! s:show_digraphs (digraphs, cursor_char, context)
 
     " Display cursor line with emulated digraph marker...
     echohl Normal
-    echon strpart(a:context.text, 0, a:context.col-1)
+    echon strcharpart(a:context.text, 0, a:context.col-1)
     echohl BDG_Cursor_Emulation
     echon a:cursor_char
     echohl Normal
-    echon strpart(a:context.text, a:context.col-1) . "\n"
+    echon strcharpart(a:context.text, a:context.col-1) . "\n"
 
     " Display remainder of digraph table...
     echohl BDG_Digraph_Table
@@ -288,9 +292,17 @@ if !exists('g:BDG_digraphs')
     \
     \   'ao' : 'ª',
     \   'oo' : 'º',
-    \   '11' : '¹',
-    \   '22' : '²',
-    \   '33' : '³',
+    \
+    \   '00' : '⁰',  '0s' : '₀',
+    \   '11' : '¹',  '1s' : '₁',
+    \   '22' : '²',  '2s' : '₂',
+    \   '33' : '³',  '3s' : '₃',
+    \   '44' : '⁴',  '4s' : '₄',
+    \   '55' : '⁵',  '5s' : '₅',
+    \   '66' : '⁶',  '6s' : '₆',
+    \   '77' : '⁷',  '7s' : '₇',
+    \   '88' : '⁸',  '8s' : '₈',
+    \   '99' : '⁹',  '9s' : '₉',
     \
     \   '14' : '¼',
     \   '12' : '½',
@@ -325,7 +337,7 @@ if !exists('g:BDG_digraphs')
     \   'TH' : 'Þ',
     \   'th' : 'þ',
     \   'DH' : 'Ð',
-    \   'dh' : 'ð',
+    \   'dh' : 'ð'
     \}
 endif
 

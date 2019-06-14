@@ -41,7 +41,8 @@ function! VTC_select ()
     let vcol += voffset
 
     " Can't select if on a blank line...
-    if getline(line) =~ s:BLANK_LINE
+    let cursor_line = getline(line)
+    if cursor_line =~ s:BLANK_LINE
         return ""
     endif
 
@@ -61,35 +62,47 @@ function! VTC_select ()
     let max_width = max(map(copy(lines), 'strlen(v:val)'))
     call map(lines, 'printf("%-'.(max_width+2).'s", v:val)')
 
-    " Locate left margin...
-    let left_col = col
-    " If starting in a gap, move back to first non-gap...
-    if s:vertical_gap_at(left_col-1, lines)
-        while left_col > 1 && s:vertical_gap_at(left_col-2, lines)
+    " Do we have visible margins (i.e. | something | )???
+    let border = '\\\@![+|]'
+    let content = '\(.\)'
+    let visible_margins = border.'\%<'.(col+1).'v[- \t=]\(\\[+|]\|[^+|]\)\{-}[- \t=]'.border.'\%>'.col.'v'
+    let cell_match = matchstrpos(cursor_line, visible_margins)
+    if !empty(cell_match[0])
+        let left_col  = cell_match[1]+2
+        let right_col = cell_match[2]
+    else
+        let visible_margins = ""
+
+        " Locate left margin...
+        let left_col = col
+        " If starting in a gap, move back to first non-gap...
+        if s:vertical_gap_at(left_col-1, lines)
+            while left_col > 1 && s:vertical_gap_at(left_col-2, lines)
+                let left_col -= 1
+            endwhile
+        endif
+        " Then move back to first gap...
+        while left_col > 1 && !s:vertical_gap_at(left_col-2, lines)
             let left_col -= 1
         endwhile
-    endif
-    " Then move back to first gap...
-    while left_col > 1 && !s:vertical_gap_at(left_col-2, lines)
-        let left_col -= 1
-    endwhile
 
-    " Locate right margin...
-    let right_col = left_col
-    " Move to start of next gap...
-    while col <= max_width && !s:vertical_gap_at(right_col, lines)
-        let right_col += 1
-    endwhile
-    " Move to end of next gap...
-    while col <= max_width && s:vertical_gap_at(right_col+1, lines)
-        let right_col += 1
-    endwhile
-    let right_col = min([right_col+1, max_width])
+        " Locate right margin...
+        let right_col = left_col
+        " Move to start of next gap...
+        while col <= max_width && !s:vertical_gap_at(right_col, lines)
+            let right_col += 1
+        endwhile
+        " Move to end of next gap...
+        while col <= max_width && s:vertical_gap_at(right_col+1, lines)
+            let right_col += 1
+        endwhile
+        let right_col = min([right_col+1, max_width])
+    endif
 
     " Is it a re-match of the same cell???
     if  min([col,vcol])   == left_col && max([col,vcol])   == right_col
     \&& min([line,vline]) <= top_line && max([line,vline]) >= bot_line
-        return VTC_extend() . resetlazyredraw
+        return VTC_extend(visible_margins) . resetlazyredraw
     endif
 
     " Return key sequence to select block...
@@ -103,7 +116,7 @@ function! VTC_select ()
 
 endfunction
 
-function! VTC_extend ()
+function! VTC_extend (visible_margins)
     " What have we selected already???
     let [cbuf, cline, ccol, coffset] = getpos('.')
     let [vbuf, vline, vcol, voffset] = getpos('v')
@@ -117,7 +130,11 @@ function! VTC_extend ()
     let new_bot_line = old_bot_line
 
     " Generate pattern to match extra lines...
-    let extend_pat = '\([[:space:]|=_+-]\{2}\|\_^[[:space:]|=_+-]\?\)\%'.left_col.'v\(.*\ze[[:space:]|=_+-]\{2}\%<'.(right_col+2).'v\|\(\([[:space:]|=_+-]\{2}\)\@!.\)*\_$\)'
+    if empty(a:visible_margins)
+        let extend_pat = '\([[:space:]|=_+-]\{2}\|\_^[[:space:]|=_+-]\?\)\%'.left_col.'v\(.*\ze[[:space:]|=_+-]\{2}\%<'.(right_col+2).'v\|\(\([[:space:]|=_+-]\{2}\)\@!.\)*\_$\)'
+    else
+        let extend_pat = a:visible_margins
+    endif
 
     " Walk upwards, checking for valid extra lines...
     for lnum in range(old_top_line-1,1,-1)
@@ -134,7 +151,7 @@ function! VTC_extend ()
     " Walk back down, excluding leading blank lines
     for lnum in range(new_top_line,old_top_line)
         let next_line = getline(lnum)
-        if next_line =~ s:BLANK_LINE || strlen(next_line) < left_col
+        if empty(a:visible_margins) && next_line =~ s:BLANK_LINE || strlen(next_line) < left_col
             let new_top_line = lnum+1
         else
             break
@@ -156,7 +173,7 @@ function! VTC_extend ()
     " Walk back up, excluding trailing blank lines
     for lnum in range(new_bot_line,old_bot_line,-1)
         let next_line = getline(lnum)
-        if next_line =~ s:BLANK_LINE || strlen(next_line) < left_col
+        if empty(a:visible_margins) && next_line =~ s:BLANK_LINE || strlen(next_line) < left_col
             let new_bot_line = lnum-1
         else
             break

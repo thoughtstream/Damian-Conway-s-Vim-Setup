@@ -90,7 +90,7 @@ sub install {
             && !prompt(-yn1r, -default=>'y',
                        "A version of $from is already installed in\n$destdir.\nReplace it? [y]:"
                       );
-         say 'Replacing it.';
+         say "Replacing $from";
          system("/bin/rm -f $to");
       }
       else {

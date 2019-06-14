@@ -31,7 +31,7 @@ inoremap <silent> <RIGHT> <c-r>=<SID>RightKey()<CR>
 "=====[ Implementation ]=====================================================
 
 " What placeholders look like and how many are pending...
-let s:placeholder_pat = '_\{3,}'
+let s:placeholder_char = '…'
 let s:placeholder_count = 0
 
 " Track repeated completions that don't change anything...
@@ -139,7 +139,7 @@ function! SmartcomAdd (left, right, completion, ...)
     let restore_cursor = get(opts, 'restore',  0)
     let filetype       = get(opts, 'filetype', "")
     let filepat        = get(opts, 'filepat',  "")
-    let placeholders   = get(opts, 'verbatim', 0) ? 0 : len(split(a:completion, s:placeholder_pat, 1))-1
+    let placeholders   = get(opts, 'verbatim', 0) ? 0 : len(split(a:completion, s:placeholder_char, 1))-1
 
     " Remember everything...
     call insert(s:completions, [a:left, a:right, a:completion, restore_cursor, filetype, filepat, placeholders])
@@ -210,11 +210,11 @@ function! <SID>Complete ()
         let s:placeholder_count -= 1
         if curr_line !~ '\S'
             delete
-            return "\<ESC>/"  . s:placeholder_pat . "\<CR>\<C-L>veo\<C-G>"
+            return "\<ESC>/"  . s:placeholder_char . "\<CR>\<C-L>vo\<C-G>"
         elseif curr_line =~ '\s'.curr_pos
-            return "\<ESC>x/" . s:placeholder_pat . "\<CR>\<C-L>veo\<C-G>"
+            return "\<ESC>x/" . s:placeholder_char . "\<CR>\<C-L>vo\<C-G>"
         else
-            return "\<ESC>/"  . s:placeholder_pat . "\<CR>\<C-L>veo\<C-G>"
+            return "\<ESC>/"  . s:placeholder_char . "\<CR>\<C-L>vo\<C-G>"
         endif
     endif
 
@@ -262,7 +262,7 @@ function! <SID>Complete ()
                 let restore_cursor = 1
 
                 " This is how to jump to the first placeholder...
-                let reversion .= "\<ESC>/" . s:placeholder_pat . "\<CR>veo\<C-G>"
+                let reversion .= "\<ESC>/" . s:placeholder_char . "\<CR>vo\<C-G>"
             endif
 
             " Return the completion...
@@ -301,7 +301,7 @@ function! <SID>RightKey ()
         if getline('.') !~ '\S'
             delete
         endif
-        return "\<ESC>/" . s:placeholder_pat . "\<CR>veo\<C-G>"
+        return "\<ESC>/" . s:placeholder_char . "\<CR>vo\<C-G>"
     else
         return "\<RIGHT>"
     endif

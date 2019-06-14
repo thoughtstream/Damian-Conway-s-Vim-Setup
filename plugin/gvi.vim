@@ -81,8 +81,8 @@ function! GVI_Setup(qargs)
     " Add smartcase-like case-sensitivity..
     let cs_target = (target =~ '\u' ? '\C' : '\c') . target
 
-    " Default to searching everywhere...
-    if empty(paths)
+    " Default to searching everywhere (ag doesn't need a default path)...
+    if empty(paths) && !g:GVI_use_ag
         let searchpath = '**'
 
     " If using ag, let it handle the unpacking of the search path...

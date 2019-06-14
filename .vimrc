@@ -1,3 +1,12 @@
+"=====[ Avoid modeline vulnerability ]===========================
+
+set nomodeline
+
+"=====[ Not a fan of mapleader mappings ]===========================
+
+let mapleader = '_'
+
+
 "=====[ Convert to Unicode defaults ]===============================
 
 setglobal termencoding=utf-8 fileencodings=
@@ -41,7 +50,7 @@ endfunction
 
 "=====[ Comments are important ]==================
 
-highlight Comment term=bold ctermfg=white
+highlight Comment term=bold cterm=italic ctermfg=white gui=italic guifg=white
 
 
 "=====[ Enable Nmap command for documented mappings ]================
@@ -83,6 +92,9 @@ set cpo-=aA
 
 " Make /g the default on :s/.../../ commands (use /gg to disable)
 "set gdefault
+
+" Prefer vertical orientation when using :diffsplit
+set diffopt+=vertical
 
 
 "====[ Go back to alternate file (but retain other g<whatever> mappings)]====
@@ -198,7 +210,7 @@ xmap <expr> M                                     ':s/' . @/ . '//g<LEFT><LEFT>'
 " (uBB is right double angle, uB7 is middle dot)
 set lcs=tab:»·,trail:␣,nbsp:˷
 highlight InvisibleSpaces ctermfg=Black ctermbg=Black
-call matchadd('InvisibleSpaces', '\S\@<=\s\+\%#\ze\s*$', -10)
+call matchadd('InvisibleSpaces', '\S\@<=\s\+\%#\ze\s*$')
 
 augroup VisibleNaughtiness
     autocmd!
@@ -266,6 +278,7 @@ set background=dark
 " set comments+=fb:-                  "Dash-space is a bullets
 
 set formatoptions-=cro
+set formatoptions+=j                  " Remove comment introducers when joining comment lines
 
 set wrapmargin=2                            "Wrap 2 characters from the edge of the window
 "set cinwords = ""                           "But not for C-like keywords
@@ -279,12 +292,14 @@ set smartindent                             "Turn on autoindenting of blocks
 
 let g:vim_indent_cont = 0                   " No magic shifts on Vim line continuations
 
-nnoremap <silent> >> :call ShiftLine()<CR>|               "And no shift magic on comments
-
-function! ShiftLine()
+"And no shift magic on comments...
+nmap <silent>  >>  <Plug>ShiftLine
+nnoremap <Plug>ShiftLine :call ShiftLine()<CR>
+function! ShiftLine() range
     set nosmartindent
-    normal! >>
+    exec "normal! " . v:count . ">>"
     set smartindent
+    silent! call repeat#set( "\<Plug>ShiftLine" )
 endfunction
 
 
@@ -317,6 +332,31 @@ xmap <BS> x
 
 " Make vaa select the entire file...
 xmap aa VGo1G
+
+" Make q extend to the surrounding string...
+xmap  q   "_y:call ExtendVisualString()<CR>
+
+let s:closematch = [ '', '', '}', ']', ')', '>', '/', "'", '"', '`' ]
+let s:ldelim = '\< \%(q [qwrx]\= \| [smy] \| tr \) \s*
+\               \%(
+\                   \({\) \| \(\[\) \| \((\) \| \(<\) \| \(/\)
+\               \)
+\               \|
+\                   \(''\) \| \("\) \| \(`\)
+\'
+let s:ldelim = substitute(s:ldelim, '\s\+', '', 'g')
+
+function! ExtendVisualString ()
+    let [lline, lcol, lmatch] = searchpos(s:ldelim, 'bWp')
+    if lline == 0
+        return
+    endif
+    let rdelim = s:closematch[lmatch]
+    normal `>
+    let rmatch = searchpos(rdelim, 'W')
+    normal! v
+    call cursor(lline, lcol)
+endfunction
 
 
 "=====[ Make arrow keys move visual blocks around ]======================
@@ -383,9 +423,12 @@ set matchpairs+=<:>,«:»,｢:｣
 
 set title           "Show filename in titlebar of window
 set titleold=
-set titlestring=%t%(\ %M%)%(\ (%{expand(\"%:~:.:h\")})%)%(\ %a%)
+"set titlestring=%t%(\ %M%)%(\ (%{expand(\"%:~:.:h\")})%)%(\ %a%)
+set title titlestring=
 
 set nomore          "Don't page long listings
+
+set cpoptions-=a    "Don't set # after a :read
 
 set autowrite       "Save buffer automatically when changing files
 set autoread        "Always reload buffer when external changes detected
@@ -405,6 +448,8 @@ set backspace=indent,eol,start      "BS past autoindents, line boundaries,
 
 set fileformats=unix,mac,dos        "Handle Mac and DOS line-endings
                                     "but prefer Unix endings
+
+set wildignorecase                  "Case-insensitive completions
 
 set wildmode=list:longest,full      "Show list of completions
                                     "  and complete as much as possible,
@@ -429,7 +474,7 @@ set thesaurus+=~/Documents/thesaurus    "Add thesaurus file for ^X^T
 set dictionary+=~/Documents/dictionary  "Add dictionary file for ^X^K
 
 
-set scrolloff=2                     "Scroll when 2 lines from top/bottom
+set scrolloff=2                     "Scroll when 3 lines from top/bottom
 
 
 
@@ -460,6 +505,8 @@ Nmap IP [Install current file and swap to alternate] :!install -f %<CR>
 " Add *** as **/* on command-line...
 cmap *** **/*
 
+" Shift-Tab in visual mode to number lines...
+xnoremap <S-TAB> :s/\%V/0<C-V><TAB>/<CR>gvg<C-A>gv:retab<ESC>gvI<C-G>u<ESC>gv/ <CR>:s/\%V /./<CR>
 
 " Take off and nuke the entire buffer contents from space
 " (It's the only way to be sure)...
@@ -590,8 +637,10 @@ set iskeyword-=,
 
 " Insert common Perl code structures...
 
-iab udd use Data::Dx; Dx
+iab udx use Data::Dx; Dx
 nmap dx A<CR>use Data::Dx; Dx;<LEFT>
+iab udd use Data::Dump 'ddx'; ddx
+iab uds use Data::Show; show
 iab urd use Regexp::Debugger;
 iab udv use Dumpvalue;<CR>Dumpvalue->new->dumpValues();<ESC>hi
 iab uds use Data::Show;<CR>show
@@ -686,7 +735,9 @@ endfunction
 "function! SetupPerlTesting ()
 "endfunction
 
-let g:PerlTests_program       = 'perltests'   " ...What to call
+autocmd BufEnter *.p[lm],*.t  let g:PerlTests_program = 'perltests'
+autocmd BufEnter *.pm6,*.p6   let g:PerlTests_program = 'prove6'
+
 let g:PerlTests_search_height = 5             " ...How far up the file hierarchy to search
 let g:PerlTests_test_dir      = '/t'          " ...Where to look for tests
 
@@ -791,21 +842,21 @@ call SmartcomAdd( ':',         ANYTHING,    "\<TAB>",                          {
                 " ==========   =====   =============================           ===================
 " Vim keywords...
 call SmartcomAdd( '^\s*func\%[tion]',
-\                              EOL,    "\<C-W>function!\<CR>endfunction\<UP> ",{'filetype':'vim'} )
-call SmartcomAdd( '^\s*for',   EOL,    " ___ in ___\n___\n\<C-D>endfor\n___",  {'filetype':'vim'} )
-call SmartcomAdd( '^\s*if',    EOL,    " ___ \n___\n\<C-D>endif\n___",         {'filetype':'vim'} )
-call SmartcomAdd( '^\s*while', EOL,    " ___ \n___\n\<C-D>endwhile\n___",      {'filetype':'vim'} )
-call SmartcomAdd( '^\s*try',   EOL,    "\n\t___\n\<C-D>catch\n\t___\n\<C-D>endtry\n___", {'filetype':'vim'} )
+\                              EOL,    "\<C-W>function!\<CR>endfunction\<UP> ", {'filetype':'vim'} )
+call SmartcomAdd( '^\s*for',   EOL,    " … in …\n…\n\<C-D>endfor\n…",           {'filetype':'vim'} )
+call SmartcomAdd( '^\s*if',    EOL,    " … \n…\n\<C-D>endif\n…",                {'filetype':'vim'} )
+call SmartcomAdd( '^\s*while', EOL,    " … \n…\n\<C-D>endwhile\n…",             {'filetype':'vim'} )
+call SmartcomAdd( '^\s*try',   EOL,    "\n\t…\n\<C-D>catch\n\t…\n\<C-D>endtry\n…", {'filetype':'vim'} )
 
                 " Left         Right   Insert                                  Where
                 " ==========   =====   =============================           ===================
 " Perl keywords...
-call SmartcomAdd( '^\s*for',   EOL,    " my $___ (___) {\n___\n}\n___",        {'filetype':'perl'} )
-call SmartcomAdd( '^\s*if',    EOL,    " (___) {\n___\n}\n___",                {'filetype':'perl'} )
-call SmartcomAdd( '^\s*while', EOL,    " (___) {\n___\n}\n___",                {'filetype':'perl'} )
-call SmartcomAdd( '^\s*given', EOL,    " (___) {\n___\n}\n___",                {'filetype':'perl'} )
-call SmartcomAdd( '^\s*when',  EOL,    " (___) {\n___\n}\n___",                {'filetype':'perl'} )
-call SmartcomAdd( '^\s*sub',   EOL,    " ___ (___) {\n___\n}\n___",            {'filetype':'perl'} )
+call SmartcomAdd( '^\s*for',   EOL,    " my $… (…) {\n…\n}\n…", {' filetype':'perl'} )
+call SmartcomAdd( '^\s*if',    EOL,    " (…) {\n…\n}\n…",       {' filetype':'perl'} )
+call SmartcomAdd( '^\s*while', EOL,    " (…) {\n…\n}\n…",       {' filetype':'perl'} )
+call SmartcomAdd( '^\s*given', EOL,    " (…) {\n…\n}\n…",       {' filetype':'perl'} )
+call SmartcomAdd( '^\s*when',  EOL,    " (…) {\n…\n}\n…",       {' filetype':'perl'} )
+call SmartcomAdd( '^\s*sub',   EOL,    " … (…) {\n…\n}\n…",     {' filetype':'perl'} )
 
 " Complete Perl module loads with the names of Perl modules...
 call SmartcomAddAction( '^\s*use\s\+\k\+', "",
@@ -813,14 +864,14 @@ call SmartcomAddAction( '^\s*use\s\+\k\+', "",
 \)
 
 " .itn itinerary files...
-let s:flight_template = "\t___\nOn: \t___\nFrom:\t___\nTo: \t___\nDepart:\t___\nDTerm:\t___\nArrive:\t___\nATerm:\t___\nLength:\t___\nClass:\t___\nSeat:\t___\nBRef:\t___\nTrans:\t___\n"
-let s:hotel_template = "\t___\nAddr:\t___\nPhone:\t___\nZone:\t___\nRate:\t___\nConfNo:\t___\n\nName:\t___\nEmail:\t___\nPhone:\t___\n"
-let s:event_template = "\t___\nTime:\t___\nVenue:\t___\n"
+let s:flight_template = "\t…\nOn: \t…\nFrom:\t…\nTo: \t…\nDepart:\t…\nDTerm:\t…\nArrive:\t…\nATerm:\t…\nLength:\t…\nClass:\t…\nSeat:\t…\nBRef:\t…\nTrans:\t…\n"
+let s:hotel_template = "\t…\nAddr:\t…\nPhone:\t…\nZone:\t…\nRate:\t…\nConfNo:\t…\n\nName:\t…\nEmail:\t…\nPhone:\t…\n"
+let s:event_template = "\t…\nTime:\t…\nVenue:\t…\n"
 
                 " Left             Right  Insert                  Where
                 " ==========       =====  =====================   ===================
 
-call SmartcomAdd( '^\s*Date:',     EOL,   "\t___\nSumm:\t___\n",  {'filetype':'itn'} )
+call SmartcomAdd( '^\s*Date:',     EOL,   "\t…\nSumm:\t…\n",      {'filetype':'itn'} )
 
 call SmartcomAdd( '^\s*Flight:',   EOL,   s:flight_template,      {'filetype':'itn'} )
 call SmartcomAdd( '^\s*Bus:',      EOL,   s:flight_template,      {'filetype':'itn'} )
@@ -858,7 +909,7 @@ Nmap ,,, [Debug current file]  :w<CR>:!clear;echo;echo;run -d %<CR>
 
 let g:help_in_tabs = 1
 
-nmap <silent> H  :let g:help_in_tabs = !g:help_in_tabs<CR>
+"nmap <silent> H  :let g:help_in_tabs = !g:help_in_tabs<CR>
 
 "Only apply to .txt files...
 augroup HelpInTabs
@@ -905,6 +956,7 @@ function! YankedToClipboard ()
     let block_of = (visualmode() == "\<C-V>" ? 'block of ' : '')
     let N = strlen(substitute(@*, '[^\n]\|\n$', '', 'g')) + 1
     let lines = (N == 1 ? 'line' : 'lines')
+    redraw
     echo block_of . N lines 'yanked to clipboard'
 endfunction
 
@@ -1084,8 +1136,8 @@ function! Uniq (...) range
 endfunction
 
 " Only in visual mode...
-xnoremap  q :call Uniq()<CR>
-xnoremap  Q :call Uniq('ignore whitespace')<CR>
+"xnoremap  q :call Uniq()<CR>
+"xnoremap  Q :call Uniq('ignore whitespace')<CR>
 
 
 "====[ Make normalized search use NFKC ]=======
@@ -1107,7 +1159,7 @@ augroup END
 
 augroup LEI
     autocmd!
-    autocmd BufEnter *.lei  nmap =  vip!sort -bdfu<CR>vip:call LEI_format()<CR>
+    autocmd BufEnter *.lei  nmap =  vip!sort -bdfu<CR>vip:call LEI_format()<CR><CR>
 augroup END
 
 function! LEI_format () range
@@ -1165,8 +1217,61 @@ set foldlevelstart=99
 " Highlight folds
 highlight Folded  ctermfg=cyan ctermbg=black
 
-" Toggle on and off...
+" Toggle special folds on and off...
 nmap <silent> <expr>  zz  FS_ToggleFoldAroundSearch({'context':1})
+nmap <silent> <expr>  zc  FS_ToggleFoldAroundSearch({'hud':1})
+
+
+" Heads-up on function names (in Vim and Perl)...
+
+let g:HUD_search = {
+\   'vim':  { 'list':     [ { 'start': '^\s*fu\%[nction]\>!\?\s*\w\+.*',
+\                             'end':   '^\s*endf\%[unction]\>\zs',
+\                           },
+\                           { 'start': '^\s*aug\%[roup]\>!\?\s*\%(END\>\)\@!\w\+.*',
+\                             'end':   '^\s*aug\%[roup]\s\+END\>\zs',
+\                           },
+\                         ],
+\              'default': '"file " . expand("%:~:.")',
+\           },
+\
+\   'perl': { 'list':    [ { 'start': '\_^\s*\zssub\s\+\w\+.\{-}\ze\s*{\|^__\%(DATA\|END\)__$',
+\                            'end':   '}\zs',
+\                          },
+\                          { 'start': '\_^\s*\zspackage\s\+\w\+.\{-}\ze\s*{',
+\                            'end':   '}\zs',
+\                          },
+\                          { 'start': '\_^\s*\zspackage\s\+\w\+.\{-}\ze\s*;',
+\                            'end':   '\%$',
+\                          },
+\                        ],
+\             'default': '"package main"',
+\          },
+\ }
+
+function! HUD ()
+    let target = get(g:HUD_search, &filetype, {})
+    let name = "'????'"
+    if !empty(target)
+        let name = eval(target.default)
+        for nexttarget in target.list
+            let [linestart, colstart] = searchpairpos(nexttarget.start, '', nexttarget.end, 'cbnW')
+            if linestart
+                let name = matchstr(getline(linestart), nexttarget.start)
+                break
+            endif
+        endfor
+    endif
+
+    if line('.') <= b:FS_DATA.context
+        return '⎺⎺⎺⎺⎺\ ' . name . ' /⎺⎺⎺⎺⎺' . repeat('⎺',200)
+    else
+        return '⎽⎽⎽⎽⎽/ ' . name . ' \⎽⎽⎽⎽⎽' . repeat('⎽',200)
+    endif
+endfunction
+
+nmap <silent> <expr>  zh  FS_ToggleFoldAroundSearch({'hud':1, 'folds':'HUD()', 'context':3})
+
 
 " Show only sub defns (and maybe comments)...
 let perl_sub_pat = '^\s*\%(sub\|func\|method\|package\)\s\+\k\+'
@@ -1193,28 +1298,6 @@ function! Static_impl (cmd)
     normal ``
 endfunction
 
-"====[ Show when lines extend past column 80 ]=================================>!<============
-
-highlight ColorColumn ctermfg=208 ctermbg=Black
-
-function! MarkMargin (on)
-    if exists('b:MarkMargin')
-        try
-            call matchdelete(b:MarkMargin)
-        catch /./
-        endtry
-        unlet b:MarkMargin
-    endif
-    if a:on
-        let b:MarkMargin = matchadd('ColorColumn', '\%81v\s*\zs\S', 100)
-    endif
-endfunction
-
-augroup MarkMargin
-    autocmd!
-    autocmd  BufEnter  *       :call MarkMargin(1)
-    autocmd  BufEnter  *.vp*   :call MarkMargin(0)
-augroup END
 
 
 "====[ Accelerated up and down on wrapped lines, but counted motions use actual lines ]============
@@ -1294,7 +1377,7 @@ augroup END
 function! Undouble_Completions ()
     let col  = getpos('.')[2]
     let line = getline('.')
-    call setline('.', substitute(line, '\(\.\?\k\+\)\%'.col.'c\zs\1', '', ''))
+    call setline('.', substitute(line, '\(\.\?\k\+\)\%'.col.'c\zs\1\>', '', ''))
 endfunction
 
 
@@ -1347,7 +1430,7 @@ endfunction
 
 "=====[ Improve ruler with various useful information]=================================
 
-let g:BRF_new_rulerformat = '%40(%#NonText# %v⇢ %l⇣ %= %{BRF_ErrStatus()}  %<%{BRF_WordCount()}⁞ %L⤓  %P%)'
+let g:BRF_new_rulerformat = '%40(%#NonText# %v⇢ %l⇣ %= %{BRF_ErrStatus()}  %<%{BRF_WordCount()} %L⤓  %P%)'
 
 function! BRF_ErrStatus()
     " Count errors and warnings in quickfix list...
@@ -1382,8 +1465,9 @@ function! BRF_WordCount()
     " Skip an increasing percentage of increasingly expensive updates, as the file gets longer...
     let g:BRF_interval += 1
     if exists("b:BRF_wordcount")
+        let timestamp = get(b:,'BRF_timestamp', -1)
         if g:BRF_interval < b:BRF_wordcount / 500
-            return '~' . b:BRF_wordcount
+            return b:BRF_wordcount . (timestamp == undotree().seq_cur ? '⁞' : '⁞̃' )
         endif
         let g:BRF_interval = 1
     endif
@@ -1396,10 +1480,11 @@ function! BRF_WordCount()
         let lines = substitute(lines, '[[:alnum:]]\+',  'X', 'g')
         let lines = substitute(lines, '[^[:alnum:]]\+', '',  'g')
         let b:BRF_wordcount = strlen(lines)
+        let b:BRF_timestamp = undotree().seq_cur
     endif
 
     " Return the precise count...
-    return ' ' . b:BRF_wordcount
+    return b:BRF_wordcount . '⁞'
 endfunction
 
 function! BRF_ToggleRuler ()
@@ -1422,6 +1507,16 @@ set ruler
 
 highlight Visual       ctermfg=Yellow ctermbg=26    " 26 = Dusty blue background
 highlight SpecialKey   cterm=bold ctermfg=Blue
+
+
+"======[ Tweak highlighted yank plugin ]====================================
+
+highlight HighlightedyankRegion cterm=NONE ctermfg=white ctermbg=darkyellow
+
+let g:highlightedyank_highlight_duration = -1
+
+let g:highlightedyank_quench_when = [ ['CursorMoved', '<buffer>'] ]
+
 
 
 "======[ Add a Y command for incremental yank in Visual mode ]==============
@@ -1452,7 +1547,7 @@ endfunction
 
 "======[ Add a $$ command in Visual mode ]==============================
 
-xnoremap <silent>       ]   $"yygv_$
+xmap     <silent>       ]   $"yygv_$
 xnoremap <silent><expr> _$  Under_dollar_visual()
 
 function! Under_dollar_visual ()
@@ -1560,7 +1655,7 @@ let g:netrw_sort_direction = 'normal'
 
 "=====[ Pod6 proofing ]==========
 
-nmap <silent> ;p :silent call Pod6_ToggleProofing()<CR>:silent call MarkMargin(0)<CR><C-L>
+nmap <silent> ;p :silent call Pod6_ToggleProofing()<CR>:silent call WarmMargin('off')<CR><C-L>
 
 
 "======[ Breakindenting ]========
@@ -1604,11 +1699,14 @@ autocmd!
     endfunction
 
     call SmartcomAdd(               '''',  '',    "\<BS>‘")
+    call SmartcomAdd(             '[‘’]',  '',    "\<BS>'")
     call SmartcomAdd( '\(\w\|[‘.!?]\)''',  '',    "\<BS>’")
     call SmartcomAdd(                '"',  '',    "\<BS>“")
     call SmartcomAdd(  '\(\w\|[“.!?]\)"',  '',    "\<BS>”")
     call SmartcomAdd(     '\.\@<!\.\.\.',  '',    "\<BS>\<BS>\<BS>…")
     call SmartcomAdd(          '--',       '',    "\<BS>\<BS>—")
+    call SmartcomAdd(          '_',        '',    "\<BS>␣")
+
 
 augroup END
 
@@ -1672,6 +1770,7 @@ call SmartcomAdd(     '"[^'']*''',  NOTHING,  "\<ESC>?\"\<CR>:nohlsearch\<CR>r'a
 call SmartcomAdd(   'qq{[^'']*''',  NOTHING,  "\<BS>}\<ESC>?qq{\<CR>:nohlsearch\<CR>2sq", {'restore':1+1} )
 
 "=====[ Translate common currencies ]==================
+
 call SmartcomAdd('\<EUR', NOTHING, "\<ESC>xxs€" )
 call SmartcomAdd('\<GBP', NOTHING, "\<ESC>xxs£" )
 call SmartcomAdd('\<ILS', NOTHING, "\<ESC>xxs₪" )
@@ -1679,13 +1778,13 @@ call SmartcomAdd('\<INR', NOTHING, "\<ESC>xxs₨" )
 call SmartcomAdd('\<JPY', NOTHING, "\<ESC>xxs¥" )
 call SmartcomAdd('\<YEN', NOTHING, "\<ESC>xxs¥" )
 
-"=====[ Park cursor in vimpoint files ]========================
+"=====[ Park cursor and demarginalize in vimpoint files ]========================
 
-augroup VimpointCursor
+augroup VimpointConfig
     autocmd!
     autocmd  BufEnter  *.vp*   :normal 0
+    autocmd  BufEnter  *.vp*   WarmMargin never
 augroup END
-
 
 "=====[ Let <UP> and <DOWN> iterate the quickfix buffer list too ]=========
 
@@ -1747,12 +1846,16 @@ let g:ale_set_signs            = 0
 let g:ale_linters              = { 'perl': ['perl'] }
 let g:ale_perl_perl_executable = 'polyperl'
 let g:ale_perl_perl_options    = '-cw -Ilib'
+let g:ale_lint_on_text_changed = 'normal'
+let g:ale_lint_on_insert_leave = 1
 
 Nmap <silent> ;m [Toggle automake on Perl files] :call Toggle_ALE()<CR>
 
 function! Start_ALE ()
-    ALEEnable
-    HierStart
+    if !expand('./.noale')
+        ALEEnable
+        HierStart
+    endif
 endfunction
 
 function! Stop_ALE ()
@@ -1764,12 +1867,16 @@ function! Stop_ALE ()
 endfunction
 
 function! Toggle_ALE ()
-    if g:ale_enabled
+    if expand('./.noale')
         call Stop_ALE()
+        echo 'Error highlighting disabled (.noale)'
+    elseif g:ale_enabled
+        call Stop_ALE()
+        echo 'Error highlighting off'
     else
         call Start_ALE()
+        echo 'Error highlighting on'
     endif
-    echo 'Error highlighting ' . (g:ale_enabled ? 'on' : 'off')
 endfunction
 
 "=====[ Adjust terminal profile for various cases ]=========
@@ -1790,7 +1897,7 @@ let s:Profile = {
 \}
 
 function! s:AutoChangeProfile ()
-    if empty(filter(getqflist(),{idx, val -> get(val,'bufnr',"") == bufnr('%')}))
+    if &filetype == 'help' || empty(filter(getqflist(),{idx, val -> get(val,'bufnr',"") == bufnr('%')}))
         call s:ChangeProfile(&filetype)
     else
         call s:ChangeProfileErrors(&filetype)
@@ -1853,3 +1960,156 @@ augroup SearchIncremental
     autocmd CmdlineEnter [/\?]   highlight  Search  ctermfg=DarkRed   ctermbg=Black cterm=NONE
     autocmd CmdlineLeave [/\?]   highlight  Search  ctermfg=White ctermbg=Black cterm=bold
 augroup END
+
+
+"=====[ Configure table-mode ]=================================================
+
+let g:table_mode_corner                 = '|'
+let g:table_mode_corner_corner          = '|'
+let g:table_mode_header_fillchar        = '='
+let g:table_mode_fillchar               = '-'
+let g:table_mode_align_char             = ':'
+let g:table_mode_cell_text_object_a_map = 'ac'
+let g:table_mode_cell_text_object_i_map = 'ic'
+let g:table_mode_syntax                 = 1
+let g:table_mode_delimiter              = ' \{2,}'
+
+nmap <TAB> :TableModeToggle<CR>
+xmap <TAB> <ESC><TAB>gv
+xmap <silent> T :<C-U>call ToggleTabularization()<CR>
+
+function! ToggleTabularization ()
+    let range = getpos('''<')[1] .','. getpos('''>')[1]
+    if getline("'<") =~ '\\\@!|'
+        silent TableModeEnable
+        exec 'silent! ' . range . 's/[-= ]\@<=+\|+[-= ]\@=/  /g'
+        exec 'silent! ' . range . 's/[-= ]|[-= ]\|[^\\]\zs|[-= ]\|[-= ]|/  /g'
+        exec 'silent! ' . range . 's/\s\+$//'
+        nohlsearch
+        TableModeDisable
+    else
+        TableModeEnable
+        '<,'>Tableize
+    endif
+    normal gv
+endfunction
+
+
+"=====[ Make vim-dirvish work how I prefer ]============
+
+" Sort directories first...
+let g:dirvish_mode = ':sort ,^.*[\/],'
+
+augroup DirvishConfig
+    autocmd!
+    autocmd FileType dirvish  :call MyDirvishSetup()
+augroup END
+
+function! MyDirvishSetup ()
+    " Set up the mapping I want...
+    nmap <buffer> .. <Plug>(dirvish_up)
+
+    " Make directories stand out...
+    syntax enable
+
+    " Make current selection stand out...
+    highlight CursorLine  cterm=bold ctermfg=white ctermbg=blue
+    highlight MatchLine   cterm=bold ctermfg=white ctermbg=blue
+
+    " Map <TAB> to open in new tab...
+    nnoremap <silent><buffer> <TAB> :call DirvishX_TabOpen()<CR>
+    xnoremap <silent><buffer> <TAB> :call DirvishX_TabOpen()<CR>
+
+    " Map <CR> to :next the selected file(s) and then cycle back
+    nnoremap <silent><buffer> <CR> :call DirvishX_Open()<CR>
+    xnoremap <silent><buffer> <CR> :call DirvishX_Open()<CR>
+
+    " Remove search pattern at start, and on <DELETE>...
+    let @/ = ''
+    nnoremap <silent><buffer> <BS> :call DirvishResetMatches()<CR>
+
+    " Various other tricks...
+    let dirvish_file = expand('<afile>')
+    augroup DirvishConfig
+        exec 'autocmd BufEnter    ' . dirvish_file . '  :normal R'
+        exec 'autocmd CursorMoved ' . dirvish_file . '  :call DirvishUpdateMatches()'
+    augroup END
+endfunction
+
+function! DirvishSmartMatch ()
+    let ignorecase = &ignorecase              ? '\c' : ''
+    let smartcase  = &smartcase && @/ =~ '\u' ? '\C' : ''
+    return ignorecase . smartcase . '^.*'.@/.'.*'
+endfunction
+
+function! DirvishMatchedFiles ()
+    let current_search_pattern = DirvishSmartMatch()
+    let filelist = []
+    for line in getline(1,'$')
+        if line =~ current_search_pattern
+            call add(filelist, line)
+        endif
+    endfor
+    return filelist
+endfunction
+
+function! DirvishUpdateMatches ()
+    if len(@/)
+        silent! call matchdelete(b:dirvish_matchline)
+        let b:dirvish_matchline = matchadd('MatchLine', DirvishSmartMatch())
+        highlight CursorLine  cterm=bold ctermfg=white ctermbg=NONE
+    else
+        highlight CursorLine  cterm=bold ctermfg=white ctermbg=blue
+    endif
+endfunction
+
+function! DirvishResetMatches ()
+    nohlsearch
+    let @/ = ''
+    silent! call matchdelete(b:dirvish_matchline)
+    highlight CursorLine  cterm=bold ctermfg=white ctermbg=blue
+endfunction
+
+function! DirvishX_Open () range
+    let files = len(@/) ? DirvishMatchedFiles() : getline(a:firstline, a:lastline)
+    exec ':next ' . join(files) . ' %'
+endfunction
+
+function! DirvishX_TabOpen () range
+    let files = len(@/) ? DirvishMatchedFiles() : getline(a:firstline, a:lastline)
+    for file in files
+        exec ':tabedit ' . file
+    endfor
+    2tabnext
+endfunction
+
+
+"=======[ Prettier tabline ]============================================
+
+highlight Tabline      cterm=underline       ctermfg=40     ctermbg=22
+highlight TablineSel   cterm=underline,bold  ctermfg=white  ctermbg=28
+highlight TablineFill  cterm=NONE            ctermfg=black  ctermbg=black
+
+
+"=======[ Swap <C-A> and g<C-A>, improve <C-A>, and persist in visual mode ]============
+
+xnoremap   <C-A>   g<C-A>gv<C-X>gv
+xnoremap  g<C-A>    <C-A>gv
+
+
+"=======[ Make literal spaces match any whitespace in searches ]============
+
+cnoremap <C-M> <C-\>e('/?' =~ getcmdtype() ? substitute(getcmdline(), '\\\@<! ', '\\_s\\+', 'g') : getcmdline())<CR><CR>
+
+
+"=======[ Limelight configuration ]==========================================
+
+" Color name (:help cterm-colors) or ANSI code
+let g:limelight_conceal_ctermfg = 'gray'
+
+" Default dimming: 0.5
+let g:limelight_default_coefficient = 0.7
+
+" Highlighting priority (default: 10)
+"   Set it to -1 not to overrule hlsearch
+let g:limelight_priority = -1

@@ -15,8 +15,12 @@ my @CANDIDATES  = (
     "man        @ARGV ",
 );
 
+my @optimized = @ARGV == 1 && $ARGV[0] =~ /^[\$\@%]/  ?  "perldoc -v '$ARGV[0]'"
+              : @ARGV == 1 && $ARGV[0] =~ /::/        ?  "perldoc    @ARGV"
+              :                                          ();
+
 @ARGV = map {qq{'$_'}} @ARGV;
-for my $command (@CANDIDATES, q{}) {
+for my $command (@optimized, @CANDIDATES, q{}) {
     given (qx{ $command 2>/dev/null }) {
         when (/.*: nothing appropriate$/) { }
         when (/\S/)                       { page( $_ ); }

@@ -22,82 +22,100 @@ let s:DEFFOLDLEVEL  = 1000
 " This is what the options are changed to...
 let s:FOLDEXPR = 'FS_FoldSearchLevel()'
 let s:FOLDTEXT = {
-\   'visible'   : "'___/ line ' . (v:foldend+1) . ' \\' . repeat('_',200) ",
-\   'invisible' : "repeat(' ',200)",
+    \'visible'   : "'___/ line ' . (v:foldend+1) . ' \\' . repeat('_',200) ",
+    \'invisible' : "repeat(' ',200)",
+    \'hud'       : "'123456789¹̥123456789²̥123456789³̥123456789⁴̥123456789"
+    \            . "⁵̥123456789⁶̥123456789⁷̥123456789⁸̥123456789⁹̥123456789'"
+    \            . " . repeat(' ',200)"
 \}
 
 
 
 " Turn the mechanism on and off...
 function! FS_ToggleFoldAroundSearch (opts)
-    " How much context to show...
-    let b:FOLDCONTEXT = get(a:opts, 'context', 1)
-    let &foldminlines = b:FOLDCONTEXT
-
-    " Show folds???
-    let folds_visible = get(a:opts, 'folds', 'visible')
-
-    " Make sure we can remember the previous setup...
-    if !exists('b:foldsearch')
-        let b:foldsearch = { 'active' : 0 }
+    if !exists('b:FS_DATA')
+        let b:FS_DATA = { 'active' : 0, 'mode' : 'off' }
     endif
 
+    " Decode args...
+    let b:FS_DATA.context  = get(a:opts, 'context',  1)
+    let b:FS_DATA.inverted = get(a:opts, 'inverted', 0)
+    let newfoldmode        = get(a:opts, 'hud',      0) ? 'hud' : 'search'
+    let &foldminlines      = 0
+
+    " Showing folds (defaults to "yes")???
+    let folds_visible = get(a:opts, 'folds', 'visible')
+
+    " Remove any remanant autocommands...
+    augroup FoldSearch
+        autocmd!
+    augroup END
+
+    " Clear any folds (if we can)...
+    silent! normal zE
+
     " Turn off, if it's on...
-    if b:foldsearch.active
-        let &foldmethod = get(b:foldsearch, 'prevfoldmethod', s:DEFFOLDMETHOD)
-        let &foldtext   = get(b:foldsearch, 'prevfoldtext',   s:DEFFOLDTEXT)
-        let &foldlevel  = get(b:foldsearch, 'prevfoldlevel',  s:DEFFOLDLEVEL)
-        let &foldexpr   = get(b:foldsearch, 'prevfoldexpr',   s:DEFFOLDEXPR)
+    if b:FS_DATA.active && newfoldmode == b:FS_DATA.mode
+        " Restore the previous setup...
+        let &foldmethod = get(b:FS_DATA, 'prevfoldmethod', s:DEFFOLDMETHOD)
+        let &foldtext   = get(b:FS_DATA, 'prevfoldtext',   s:DEFFOLDTEXT)
+        let &foldlevel  = get(b:FS_DATA, 'prevfoldlevel',  s:DEFFOLDLEVEL)
+        let &foldexpr   = get(b:FS_DATA, 'prevfoldexpr',   s:DEFFOLDEXPR)
 
-        " Remove autocommands for refolding for each new search...
-        augroup FoldSearch
-            autocmd!
-        augroup END
+        " Then forget everything...
+        unlet b:FS_DATA
 
-        " Remember that it's off...
-        let b:foldsearch.active = 0
+        return '<C-L>'
 
-        " Disable special <CR> behaviour...
-        nunmap <buffer> <CR>
-
-        return 'zE'
-
-    " Turn on, if it's off...
+    " Turn on, if it's off or a mode change...
     else
+        " Turn on, and save old settings...
+        if !b:FS_DATA.active
+            let b:FS_DATA.prevfoldmethod = &foldmethod
+            let b:FS_DATA.prevfoldexpr   = &foldexpr
+            let b:FS_DATA.prevfoldtext   = &foldtext
+            let b:FS_DATA.prevfoldlevel  = &foldlevel
+            let b:FS_DATA.active         = 1
+        endif
 
-        " Save old settings...
-        let b:foldsearch.prevfoldmethod = &foldmethod
-        let b:foldsearch.prevfoldexpr   = &foldexpr
-        let b:foldsearch.prevfoldtext   = &foldtext
-        let b:foldsearch.prevfoldlevel  = &foldlevel
+        " Set up ruler behaviour, if requested...
+        if newfoldmode == 'hud'
+            let b:FS_DATA.mode = 'hud'
+            let b:FS_DATA.line = 0
 
-        " Set up new behaviour...
-        let &foldtext   = s:FOLDTEXT[folds_visible]
-        let &foldexpr   = s:FOLDEXPR
-        let &foldmethod = 'expr'
-        let &foldlevel  = 0
+            let &foldtext      = get(a:opts, 'folds', s:FOLDTEXT['hud'])
+            let &foldmethod    = 'manual'
+            let &foldlevel = 0
 
-        " Recalculate folding for each new search...
-        augroup FoldSearch
-            autocmd!
-            autocmd CursorMoved  *  let b:inopenfold = foldlevel('.') && foldclosed('.') == -1
-            autocmd CursorMoved  *  let &foldexpr  = &foldexpr
-            autocmd CursorMoved  *  let &foldlevel = 0
-            autocmd CursorMoved  *  call ReopenFold()
-            function! ReopenFold ()
-                if b:inopenfold
-                    normal zo
-                endif
-            endfunction
-        augroup END
+            " Recalculate folding for each new cursor position...
+            augroup FoldSearch
+                autocmd!
+                autocmd CursorMoved * call FS_FoldRuler()
+            augroup END
 
-        " Enable special <CR> behaviour...
-        nnoremap <buffer> <expr> <CR> foldlevel('.') ? 'zA' : ''
+            " Show ruler initially...
+            return 'zE:silent .'
+            \      . ( line('.') <= b:FS_DATA.context ? '+' : '-' )
+            \      . max([1, b:FS_DATA.context]) . "fold\<CR>"
 
-        " Remember that it's on...
-        let b:foldsearch.active = 1
+        " Otherwise, set up search behaviour...
+        else
+            let b:FS_DATA.mode = 'search'
 
-        return "\<C-L>"
+            let &foldtext   = get(s:FOLDTEXT, folds_visible, folds_visible)
+            let &foldexpr   = s:FOLDEXPR
+            let &foldmethod = 'expr'
+            let &foldlevel  = 0
+
+            " Recalculate folding for each new search...
+            augroup FoldSearch
+                autocmd!
+                autocmd CursorMoved  *  let &foldexpr  = &foldexpr
+                autocmd CursorMoved  *  let &foldlevel = 0
+            augroup END
+
+            return "\<C-L>"
+        endif
     endif
 endfunction
 
@@ -107,8 +125,8 @@ function! FS_FoldAroundTarget (target, opts)
     let folds_visible = get(a:opts, 'folds',   'visible')
 
     " If already in a foldsearch...
-    if exists('b:foldsearch')
-        if b:foldsearch.active
+    if exists('b:FS_DATA')
+        if b:FS_DATA.active
             " If already folding this pattern...
             if @/ == a:target
                 " Toggle off...
@@ -116,9 +134,10 @@ function! FS_FoldAroundTarget (target, opts)
 
             " Otherwise stay in foldsearch and switch to target...
             else
-                let b:FOLDCONTEXT = get(a:opts, 'context', 1)
-                let &foldtext     = s:FOLDTEXT[folds_visible]
-                let &foldminlines = 1
+                let b:FS_DATA.context  = get(a:opts, 'context', 1)
+                let b:FS_DATA.inverted = get(a:opts, 'inverted', 0)
+                let &foldtext      = get(s:FOLDTEXT, folds_visible, folds_visible)
+                let &foldminlines  = 1
                 return '/' . a:target . "\<CR>"
             endif
         endif
@@ -131,8 +150,8 @@ endfunction
 " Utility function implements folding expression...
 function! FS_FoldSearchLevel ()
     " Allow one line of context before and after...
-    let startline = v:lnum > 1         ? v:lnum - b:FOLDCONTEXT : v:lnum
-    let endline   = v:lnum < line('$') ? v:lnum + b:FOLDCONTEXT : v:lnum
+    let startline = v:lnum > b:FS_DATA.context ? v:lnum - b:FS_DATA.context : v:lnum
+    let endline   = v:lnum < line('$') - b:FS_DATA.context ? v:lnum + b:FS_DATA.context : v:lnum
     let context = getline(startline, endline)
 
     " Simulate smartcase matching...
@@ -142,9 +161,21 @@ function! FS_FoldSearchLevel ()
     endif
 
     " Line is folded if surrounding context doesn't match last search pattern...
-    return match(context, matchpattern) == -1
+    let matched = match(context, matchpattern) == -1
+    return get(b:FS_DATA,'inverted',0) ? !matched : matched
 
 endfunction
+
+function! FS_FoldRuler ()
+    if exists('b:FS_DATA') && b:FS_DATA.line != line('.')
+        let b:FS_DATA.line = line('.')
+        normal zE
+        silent exec '.'
+        \          . ( b:FS_DATA.line <= b:FS_DATA.context ? '+' : '-' )
+        \          . max([1, b:FS_DATA.context]) . 'fold'
+    endif
+endfunction
+
 
 " Restore previous external compatibility options
 let &cpo = s:save_cpo

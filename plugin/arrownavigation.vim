@@ -1,4 +1,4 @@
-" Vim global plugin for using arrows to navigate file lists
+" Vim global plugin for using arrows to navigate file lists and tabs
 " Last change:  Wed Dec 21 21:41:19 AEDT 2016
 " Maintainer:   Damian Conway
 " License:  This file is placed in the public domain.
@@ -15,7 +15,7 @@ set cpo&vim
 
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-"  Make it easy to navigate arglists, quickfixes, and vimgreps
+"  Make it easy to navigate arglists, quickfixes, vimgreps, and multiple tabs
 "  using the arrow keys
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -29,7 +29,8 @@ nmap <silent>  <UP>            :call ArrNav_PREV_FILE()<CR>
 nmap <silent>  <DOWN>          :call ArrNav_NEXT_FILE()<CR>
 
 " <LEFT> and <RIGHT> jump to next item
-" in the quickfix list or location list...
+" in the quickfix list or location list
+" or if both lists are empty, to the next tab...
 "
 nmap <silent>  <LEFT>          :call ArrNav_PREV_ITEM()<CR>
 nmap <silent>  <RIGHT>         :call ArrNav_NEXT_ITEM()<CR>
@@ -43,12 +44,14 @@ nmap <silent>  <RIGHT><RIGHT>  :call ArrNav_NEXT_BUFFER()<CR>
 
 " Unset this flag to prevent <UP> and <DOWN> from falling back
 " on iterating the buffers of the quickfix and location lists
+
 if !exists('g:ArrNav_arglist_fallback')
     let g:ArrNav_arglist_fallback = 0
 endif
 
 " Redefine this to change the colour of warnings when no jump occurs
-"
+" (208 is a warm orange-brown on an xterm-256)
+
 highlight default ArrNav_Warning ctermfg=208
 
 
@@ -62,7 +65,7 @@ function! ArrNav_NEXT_FILE ()
     if argidx() < argc() - 1
         silent next
         redraw!
-        echo '(' . (argidx()+1) . ' of ' . argc() . '): ' . expand('%')
+        echomsg '(' . (argidx()+1) . ' of ' . argc() . '): ' . expand('%')
         return
     endif
 
@@ -77,7 +80,7 @@ function! ArrNav_NEXT_FILE ()
     " Otherwise report the failure to change buffer using a distinct highlight
     else
         echohl ArrNav_Warning
-        echo '(' . (argidx()+1) . ' of ' . argc() . '): ' . expand('%')
+        echomsg '(' . (argidx()+1) . ' of ' . argc() . '): ' . expand('%')
         echohl NONE
     endif
 
@@ -92,7 +95,7 @@ function! ArrNav_PREV_FILE ()
     if argidx() > 0
         silent prev
         redraw!
-        echo '(' . (argidx()+1) . ' of ' . argc() . '): ' . expand('%')
+        echomsg '(' . (argidx()+1) . ' of ' . argc() . '): ' . expand('%')
         return
     endif
 
@@ -108,94 +111,97 @@ function! ArrNav_PREV_FILE ()
     " Otherwise report the failure to change buffer using a distinct highlight
     else
         echohl ArrNav_Warning
-        echo '(' . (argidx()+1) . ' of ' . argc() . '): ' . expand('%')
+        echomsg '(' . (argidx()+1) . ' of ' . argc() . '): ' . expand('%')
         echohl NONE
     endif
 
 endfunction
 
 
-" Jump to the previous item in the quickfix or location list...
+" Jump to the previous item in the quickfix or location list, or to previous tab...
 "
 function! ArrNav_PREV_ITEM ()
 
-    " Work out whether to use the quickfix or location list...
-    let errors = 1
-    let list = getqflist()
+    " Work out whether to use the quickfix or location list or the current set of tabs...
+    let errors  = 1
+    let list    = getqflist()
+    let curridx = getqflist({'idx':1}).idx
     if empty(list)
-        let list = getloclist(0)
-        let errors = 0
+        let errors  = 0
+        let list    = getloclist(0)
+        let curridx = getloclist(0,{'idx':1}).idx
     endif
 
-    " If neither list active, print a warning and we're done...
+    " If neither list active, try changing tabs, otherwise print a warning and we're done...
     if empty(list)
-        echohl ArrNav_Warning
-        echo 'Nothing to step through'
-        echohl NONE
+        if len(gettabinfo()) > 1
+            tabprev
+        else
+            echohl ArrNav_Warning
+            echomsg 'Nothing to step through'
+            echohl NONE
+        endif
         return
     endif
 
     " Try to jump to the preceding list item...
-    try
-        if errors | cprev | else | lprev | endif
-        redraw
-
-        " On failure, must be at the first element,
-        " so jump to it and reproduce the report in the warning colour...
-        catch
-            try
-                if errors | silent cfirst | else | silent lfirst | endif
-                let first = get(list,0,{'text':'', 'type':''})
-                let type = first.type == 'w' ? ' warning' : ''
-                echohl ArrNav_Warning
-                echo '(1 of ' . len(list) . ')' . type . ': ' . first.text
-                echohl NONE
-                redraw
-            endtry
-        finally
-    endtry
+    let previdx = s:prev_from_here(list, curridx)
+    if previdx < 1
+        silent exec (errors ? 'cfirst! ' : 'lfirst! ')
+        let type = list[0].type == 'w' ? ' warning' : ''
+        echohl ArrNav_Warning
+        echomsg '(1 of ' . len(list) . ')' . type . ': ' . list[0].text
+        echohl NONE
+    else
+        if &autowrite && &modified && list[previdx-1].bufnr != list[curridx-1].bufnr
+            try | write | finally | endtry
+        endif
+        exec (errors ? 'cc! ' : 'll! ') . previdx
+    endif
 endfunction
 
-" Jump to the next item in the quickfix or location list...
+" Jump to the next item in the quickfix or location list, or to next tab...
 "
 function! ArrNav_NEXT_ITEM ()
     "
-    " Work out whether to use the quickfix or location list...
-    let errors = 1
-    let list = getqflist()
+    " Work out whether to use the quickfix or location list or current set of tabs...
+    let errors  = 1
+    let list    = getqflist()
+    let curridx = getqflist({'idx':1}).idx
     if empty(list)
-        let list = getloclist(0)
-        let errors = 0
+        let errors  = 0
+        let list    = getloclist(0)
+        let curridx = getloclist(0,{'idx':1}).idx
     endif
 
-    " If neither list active, print a warning and we're done...
+    " If neither list active, try changing tabs, otherwise print a warning and we're done...
     if empty(list)
-        echohl ArrNav_Warning
-        echo 'Nothing to step through'
-        echohl NONE
+        if len(gettabinfo()) > 1
+            tabnext
+        else
+            echohl ArrNav_Warning
+            echo 'Nothing to step through'
+            echohl NONE
+        endif
         return
     endif
 
     " Try to jump to the next list item...
-    try
-        if errors | cnext | else | lnext | endif
-        redraw
-
-        " On failure, must be at the last element,
-        " so jump to it and reproduce the report in the warning colour...
-        catch
-            try
-                if errors | silent clast | else | silent llast | endif
-                let listlen = len(list)
-                let final = get(list,-1,{'text':'', 'type':''})
-                let type = final.type == 'w' ? ' warning' : ''
-                echohl ArrNav_Warning
-                echo '(' . listlen . ' of ' . listlen . ')' . type . ': ' . final.text
-                echohl NONE
-                redraw
-            endtry
-        finally
-    endtry
+    let nextidx = s:next_from_here(list, curridx)
+    if nextidx > len(list)
+        silent exec (errors ? 'clast! ' : 'llast! ')
+        let type = list[-1].type == 'w' ? ' warning' : ''
+        if nextidx > len(list)
+            echohl ArrNav_Warning
+        endif
+        echomsg '(' . len(list) . ' of ' . len(list) . ')' . type . ': ' . list[-1].text
+        echohl NONE
+    else
+        if &autowrite && &modified && list[nextidx-1].bufnr != list[curridx-1].bufnr
+            try | write | finally | endtry
+        endif
+        exec (errors ? 'cc! ' : 'll! ') . nextidx
+    endif
 endfunction
 
 
@@ -241,6 +247,24 @@ function! ArrNav_NEXT_BUFFER ()
             lnfile | catch | noautocmd llast | redraw! | call ArrNav_NEXT_ITEM() | finally
         endtry
     endif
+endfunction
+
+function! s:next_from_here(list, curridx) abort
+    let [buf, lnum, col, off] = getpos('.')
+    let buf = bufnr('%')
+    let list = copy(a:list)
+    call map(list, { k,v -> v.bufnr==buf && (v.lnum==lnum && v.col>col || v.lnum>lnum) ? k+1 : 0 })
+    call filter(list, { k,v -> v > 0 })
+    return get(list, 0, a:curridx+1)
+endfunction
+
+function! s:prev_from_here(list, curridx) abort
+    let [buf, lnum, col, off] = getpos('.')
+    let buf = bufnr('%')
+    let list = copy(a:list)
+    call map(list, { k,v -> v.bufnr==buf && (v.lnum==lnum && v.col<col || v.lnum<lnum) ? k+1 : 0 })
+    call filter(list, { k,v -> v > 0 })
+    return get(list, -1, a:curridx-1)
 endfunction
 
 

@@ -49,17 +49,30 @@ let s:LINE_WITH_EQ_TXT
 \    . '\(:\@<=\s\|=\)'
 \    . '\s*\(.*\)$'
 
+" Build a simple matcher around the specified pattern
+" For example, to default to aligning on <-- in files of filetype
+function! EQAS_Match_On (pattern)
+    return '^\(\%(\s*"\)\?\%('.s:QUOTELIKE.'\|[^''"]\)\{-}\)\s*'
+    \    . a:pattern
+    \    . '\s*\(.*\)$'
+endfunction
+
+" Configure for each filetype (global, so others can extend it)
+let g:EqAlign_default_match = {
+\    'perl'  : s:LINE_WITH_EQ_ARROW,
+\    'perl6' : s:LINE_WITH_EQ_ARROW,
+\    'ruby'  : s:LINE_WITH_EQ_ARROW,
+\    'php'   : s:LINE_WITH_EQ_ARROW,
+\    'vim'   : s:LINE_WITH_EQ_VIM,
+\    'css'   : EQAS_Match_On( '\(::\@!\)' ),
+\    'json'  : EQAS_Match_On( '\(::\@!\)' )
+\}
+
 function EQAS_Align (mode, ...) range
     let option = a:0 ? a:1 : {}
 
-    "What symbol to align (defaults to '=' variants)...
-    if &filetype =~ '^\%(perl6\?\|ruby\|php\)'
-        let search_pat = s:LINE_WITH_EQ_ARROW
-    elseif &filetype == 'vim'
-        let search_pat = s:LINE_WITH_EQ_VIM
-    else
-        let search_pat = s:LINE_WITH_EQ_TXT
-    endif
+    "What symbol to align by default (determined by filetype and g:EqAlign_default_match)
+    let search_pat = get(g:EqAlign_default_match, &filetype, s:LINE_WITH_EQ_TXT)
 
     "Handle config options on search...
     if strlen(get(option,'pattern',""))

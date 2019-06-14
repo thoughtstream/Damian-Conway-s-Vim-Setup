@@ -55,7 +55,7 @@ function! g:GTF_goto_file (...)
 
         " Work out the new list of compatible files...
         if input_active == '`'
-            let file_list = reverse(glob('lib/**/*.pm', 0, 1))
+            let file_list = reverse(glob('lib6?/**/*.pm6?', 0, 1))
             let input_active = s:common_prefix(file_list)
             let input = input_processed . input_active
         else
@@ -257,15 +257,12 @@ function! s:active_getchar ()
     " Translate <DELETE>'s...
     if char == 128 || char == "\<BS>"
         return "\<BS>"
-
-    " Don't translate specials...
-    elseif char =~ '^\%x80'
-        return char
-
-    " Translate everything else...
-    else
-        return nr2char(char)
     endif
+
+    " See if we got a single character, otherwise return the lot...
+    let single_char = nr2char(char)
+    return empty(single_char) ? char : single_char
+
 endfunction
 
 

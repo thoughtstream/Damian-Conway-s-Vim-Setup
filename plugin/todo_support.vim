@@ -63,7 +63,7 @@ function! TODO_Load_Support ()
     setlocal foldminlines=0
     setlocal foldtext=TODO_FoldText()
     setlocal foldmethod=indent
-    %foldopen!
+    silent! %foldopen!
 endfunction
 
 " Delete a point (and subpoints)...
