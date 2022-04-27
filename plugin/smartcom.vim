@@ -32,7 +32,6 @@ inoremap <silent> <RIGHT> <c-r>=<SID>RightKey()<CR>
 
 " What placeholders look like and how many are pending...
 let s:placeholder_char = '…'
-let s:placeholder_count = 0
 
 " Track repeated completions that don't change anything...
 let s:prev_curr_line = ""
@@ -206,8 +205,7 @@ function! <SID>Complete ()
     let curr_pos  = '\%' . col . 'c'
 
     " Special case: pending placeholders, and not completable --> next placeholder
-    if s:placeholder_count && (curr_line !~ '\k'.curr_pos || curr_line == prev_curr_line)
-        let s:placeholder_count -= 1
+    if search(s:placeholder_char,"cnw") && (curr_line !~ '\k'.curr_pos || curr_line == prev_curr_line)
         if curr_line !~ '\S'
             delete
             return "\<ESC>/"  . s:placeholder_char . "\<CR>\<C-L>vo\<C-G>"
@@ -255,9 +253,6 @@ function! <SID>Complete ()
 
             " Remember the extra placeholders...
             if placeholders
-                " Placeholder count incremented by N-1 because we immediately jump to the first...
-                let s:placeholder_count += placeholders - 1
-
                 " Have to jump from the start of the inserted text...
                 let restore_cursor = 1
 
@@ -296,8 +291,7 @@ endfunction
 " Give <RIGHT> key special behaviour when placeholders are pending...
 
 function! <SID>RightKey ()
-    if s:placeholder_count
-        let s:placeholder_count -= 1
+    if search(s:placeholder_char, "cnw")
         if getline('.') !~ '\S'
             delete
         endif

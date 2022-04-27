@@ -30,14 +30,14 @@ set cpo&vim
 "     template.t
 "
 " Grabs the template with the same extension as the file you're
-" creating, replaces any <PLACEHOLDER> it recognizes in the text
+" creating, replaces any «PLACEHOLDER» it recognizes in the text
 " with suitable data, then fills the empty buffer of the new file
 " with the filled-in template text.
 "
 " You can add extra template data as a dictionary stored in the
 " g:FileTemplatesInfo variable (you should probably set up
 " this variable in your .vimrc). For example to add data for
-" new <NAME> and <ADDR> template placeholders:
+" new «NAME» and «ADDR» template placeholders:
 "
 "     let g:FileTemplatesInfo = {
 "     \        'NAME'  : 'S. Holmes',
@@ -66,24 +66,25 @@ function! FindAndFillTemplate (filepath) abort
     " Build a Perl module name from the filename...
     let modname = fnamemodify(a:filepath, ":r")
     let modname = substitute(modname, '/', '::', 'g')
-    let modname = substitute(modname, '^.*::lib::', '', '')
-    let modname = substitute(modname, '^lib::', '', '')
+    let modname = substitute(modname, '^.*::lib6\?::', '', '')
+    let modname = substitute(modname, '^lib6\?::', '', '')
 
     " Build a Perl RT address from the filename...
     let rtname = fnamemodify(a:filepath, ":r")
     let rtname = substitute(rtname, '/', '-', 'g')
-    let rtname = substitute(rtname, '^.*-lib-', '', '')
-    let rtname = substitute(rtname, '^lib-', '', '')
+    let rtname = substitute(rtname, '^.*-lib6\?-', '', '')
+    let rtname = substitute(rtname, '^lib6\?-', '', '')
 
     " Construct other information to replace placeholders in the template...
     let REPLACEMENTS = {
-    \   'FILENAME'    : fnamemodify(a:filepath, ':t'),
-    \   'FILEROOT'    : fnamemodify(a:filepath, ':t:r'),
-    \   'TIMESTAMP'   : strftime("%FT%T%z"),
-    \   'DATE'        : strftime("%c"),
-    \   'YEAR'        : strftime("%Y"),
-    \   'MODULE NAME' : modname,
-    \   'RT NAME'     : tolower(rtname)
+    \   'FILENAME'     : fnamemodify(a:filepath, ':t'),
+    \   'PROGRAM NAME' : fnamemodify(a:filepath, ':t'),
+    \   'FILEROOT'     : fnamemodify(a:filepath, ':t:r'),
+    \   'TIMESTAMP'    : strftime("%FT%T%z"),
+    \   'DATE'         : strftime("%c"),
+    \   'YEAR'         : strftime("%Y"),
+    \   'MODULE NAME'  : modname,
+    \   'RT NAME'      : tolower(rtname)
     \}
 
     " Add in user-defined information from g:FileTemplatesInfo (if any)...
@@ -96,7 +97,7 @@ function! FindAndFillTemplate (filepath) abort
 
         " Replace all the placeholders...
         let template 
-        \   = substitute(template, '<\([A-Z_ ]\+\)>', { m -> get(REPLACEMENTS, m[1], m[0]) }, 'g')
+        \   = substitute(template, '«\([A-Z_ ]\+\)»', { m -> get(REPLACEMENTS, m[1], m[0]) }, 'g')
 
         " Install the filled-in template into the empty buffer...
         call append(0, split(template, "\n"))

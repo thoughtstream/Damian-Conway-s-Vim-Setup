@@ -54,8 +54,11 @@ function! g:GTF_goto_file (...)
         let input_active    = input[len(input_processed):]
 
         " Work out the new list of compatible files...
-        if input_active == '`'
-            let file_list = reverse(glob('lib6?/**/*.pm6?', 0, 1))
+        if input_active =~ '`'
+            let file_list =    reverse(glob('lib/**/*.pm',       0, 1))
+                          \  + reverse(glob('lib6/**/*.pm',      0, 1))
+                          \  + reverse(glob('lib6/**/*.pm6',     0, 1))
+                          \  + reverse(glob('lib6/**/*.rakumod', 0, 1))
             let input_active = s:common_prefix(file_list)
             let input = input_processed . input_active
         else
@@ -164,8 +167,8 @@ function! g:GTF_goto_file (...)
             endif
         endif
 
-        " <ESC> --> cancel...
-        if next_char == "\<ESC>"
+        " <ESC> or <CTRL-C> --> cancel...
+        if next_char == "\<ESC>" || next_char == "\<C-C>"
             let input = ""
             break
         endif
@@ -248,11 +251,15 @@ let &cpo = s:save_cpo
 function! s:active_getchar ()
 
     " Get a character, ignoring annoying timeouts...
-    let char = 0
-    while !char
-        let char = getchar(1)
+"    let char = 0
+"    while !char
+"        let char = getchar(1)
+"    endwhile
+"    let char = getchar(0)
+    let char = getchar()
+    while char == "\<CursorHold>"
+      let char = getchar()
     endwhile
-    let char = getchar(0)
 
     " Translate <DELETE>'s...
     if char == 128 || char == "\<BS>"
@@ -312,7 +319,7 @@ function! s:completion_table_for (file_list)
     endfor
 
     " Too much to show, so show nothing...
-    if margin < 0 
+    if margin < 0
         return []
     endif
 

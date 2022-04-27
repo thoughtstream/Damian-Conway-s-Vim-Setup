@@ -3,11 +3,11 @@ use strict;
 use warnings;
 
 for my $name (@ARGV) {
-    if ($name =~ /^-/) {
+    if ($name =~ /^-/ || $name !~ /::|\//) {
         print $name;
     }
     else {
-        print join '::', map { ucfirst($_) } split /::/, $name;
+        print join '::', map { ucfirst($_) } split /::|\//, $name;
     }
     print " ";
 }

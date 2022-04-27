@@ -32,6 +32,7 @@ sub page {
 
     my $pager;
     if (($text =~ tr/\n//) > $SINGLE_PAGE ) {
+        $ENV{LESSCHARSET} = 'utf-8';
         open $pager, '|/usr/bin/less';
     }
     else {

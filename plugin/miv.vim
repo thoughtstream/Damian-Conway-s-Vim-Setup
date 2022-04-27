@@ -41,7 +41,11 @@ function! s:remove_path (filepath)
     let shell_failed = 0
     while !shell_failed
         let filepath = fnamemodify(filepath, ':h')
-        call system('rmdir ' . filepath)
+        try
+            call system('rmdir ' . filepath)
+        catch
+        finally
+        endtry
         let shell_failed = v:shell_error
     endwhile
 endfunction

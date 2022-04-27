@@ -148,21 +148,42 @@ function! FS_FoldAroundTarget (target, opts)
 endfunction
 
 " Utility function implements folding expression...
-function! FS_FoldSearchLevel ()
-    " Allow one line of context before and after...
-    let startline = v:lnum > b:FS_DATA.context ? v:lnum - b:FS_DATA.context : v:lnum
-    let endline   = v:lnum < line('$') - b:FS_DATA.context ? v:lnum + b:FS_DATA.context : v:lnum
-    let context = getline(startline, endline)
+"function! FS_FoldSearchLevel ()
+"    " Allow one line of context before and after...
+"    let startline = v:lnum > b:FS_DATA.context ? v:lnum - b:FS_DATA.context : v:lnum
+"    let endline   = v:lnum < line('$') - b:FS_DATA.context ? v:lnum + b:FS_DATA.context : v:lnum
+"    let context = getline(startline, endline)
+"
+"    " Simulate smartcase matching...
+"    let matchpattern = @/
+"    if &smartcase && matchpattern =~ '\u'
+"        let matchpattern = '\C'.matchpattern
+"    endif
+"
+"    " Line is folded if surrounding context doesn't match last search pattern...
+"    let matched = match(context, matchpattern) == -1
+"    return get(b:FS_DATA,'inverted',0) ? !matched : matched
+"
+"endfunction
 
-    " Simulate smartcase matching...
-    let matchpattern = @/
-    if &smartcase && matchpattern =~ '\u'
-        let matchpattern = '\C'.matchpattern
+function! FS_FoldSearchLevel ()
+    if get(b:,'FS_lastpat','') != @/
+        let b:FS_matchline = {}
+        let prev_pos = getcurpos()
+        call setpos('.', [0,1,1,0])
+        let from_line = search(@/, "Wc")
+        while from_line > 0
+            let to_line = search(@/, "Wce")
+            for linenum in range(from_line-1, to_line+1)
+                let b:FS_matchline[linenum] = 1
+            endfor
+            let from_line = search(@/, "Wc")
+        endwhile
+        call setpos('.',prev_pos)
+        let b:FS_lastpat = @/
     endif
 
-    " Line is folded if surrounding context doesn't match last search pattern...
-    let matched = match(context, matchpattern) == -1
-    return get(b:FS_DATA,'inverted',0) ? !matched : matched
+    return !get(b:FS_matchline, v:lnum, 0)
 
 endfunction
 

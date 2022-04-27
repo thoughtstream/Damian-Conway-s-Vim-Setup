@@ -86,7 +86,7 @@
 "##      ?i  -->  ¿                                                          ##
 "##                                                                          ##
 "##                                                                          ##
-"##  3. Ordinals                                                             ##
+"##  4. Ordinals                                                             ##
 "##     (Always the character followed by 'o')                               ##
 "##                                                                          ##
 "##      ao  -->  ª                                                          ##
@@ -96,7 +96,14 @@
 "##      3o  -->  ³                                                          ##
 "##                                                                          ##
 "##                                                                          ##
-"##  5. Some obvious pictographic additions and alternatives                 ##
+"##  5. Arrows                                                               ##
+"##     ('|' for solid, ':' for dashed; u/d/l/r for up/down/left/right       ##
+"##                                                                          ##
+"##      |u  -->  ↑      |d  -->  ↓      |l  -->  ←      |r  -->  →          ##
+"##      :u  -->  ⇡      :d  -->  ⇣      :l  -->  ⇠      :r  -->  ⇢          ##
+"##                                                                          ##
+"##                                                                          ##
+"##  6. Some obvious pictographic additions and alternatives                 ##
 "##     (Generally, doubling the letter produces the common variant)         ##
 "##                                                                          ##
 "##      ++  -->  ±                                                          ##
@@ -289,6 +296,8 @@ if !exists('g:BDG_digraphs')
     \   'ds' : '÷',
     \   'di' : '÷',
     \   'de' : '°',
+    \   'in' : '∞',
+    \   'pi' : 'π',
     \
     \   'ao' : 'ª',
     \   'oo' : 'º',
@@ -307,6 +316,22 @@ if !exists('g:BDG_digraphs')
     \   '14' : '¼',
     \   '12' : '½',
     \   '34' : '¾',
+    \   '13' : '⅓',
+    \   '23' : '⅔',
+    \   '15' : '⅕',
+    \   '25' : '⅖',
+    \   '35' : '⅗',
+    \   '45' : '⅘',
+    \   '16' : '⅙',
+    \   '56' : '⅚',
+    \   '18' : '⅛',
+    \   '38' : '⅜',
+    \   '58' : '⅝',
+    \   '78' : '⅞',
+    \   '17' : '⅐',
+    \   '19' : '⅑',
+    \   '10' : '⅒',
+    \   '03' : '↉',
     \
     \   'AG' : 'À',   'EG' : 'È',   'IG' : 'Ì',   'OG' : 'Ò',   'UG' : 'Ù',
     \   'AA' : 'Á',   'EA' : 'É',   'IA' : 'Í',   'OA' : 'Ó',   'UA' : 'Ú',   'YA' : 'Ý',
@@ -337,7 +362,10 @@ if !exists('g:BDG_digraphs')
     \   'TH' : 'Þ',
     \   'th' : 'þ',
     \   'DH' : 'Ð',
-    \   'dh' : 'ð'
+    \   'dh' : 'ð',
+    \
+    \   '|u' : '↑',   '|d' : '↓',   '|l' : '←',   '|r' : '→',
+    \   ':u' : '⇡',   ':d' : '⇣',   ':l' : '⇠',   ':r' : '⇢'
     \}
 endif
 
@@ -386,6 +414,13 @@ if len(current_line)
 endif
 let s:digraph_table = s:BLANK_LINE + s:digraph_table + s:BLANK_LINE
 
+
+" These will form the basis of:
+"   ^K^K -> superscript  <- ^K -> subscript -> <ESC>
+" 
+" ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890()-+=
+" ᴬᴮ ᴰᴱ ᴳᴴᴵᴶᴷᴸᴹᴺᴼᴾ ᴿˢᵀᵁⱽᵂˣʸ ªᵇᶜᵈᵉᶠᵍʰⁱʲᵏˡᵐⁿᵒᵖ ʳˢᵗᵘᵛʷˣʸᶻ¹²³⁴⁵⁶⁷⁸⁹⁰⁽⁾⁻⁺⁼
+"                           ₐ ꜀ ₑ  ₕᵢⱼₖₗₘₙₒₚ ᵣₛₜᵤᵥ ₓᵧ ₁₂₃₄₅₆₇₈₉₀₍₎₋₊₌
 
 " Restore previous external compatibility options
 let &cpo = s:save_cpo

@@ -31,12 +31,12 @@ function! s:AlignWhitespaceCols (first_line, last_line)
     while 1
         " Get next column to be added, if any...
         let column = map(copy(lines), 'get(v:val,colnum,"")')
-        if max(map(copy(column), 'strlen(v:val)')) == 0
+        if max(map(copy(column), 'strdisplaywidth(v:val)')) == 0
             break
         endif
 
         " Work out alignment...
-        let colpos = map(copy(aligned_lines), 'strlen(v:val)')
+        let colpos = map(copy(aligned_lines), 'strdisplaywidth(v:val)')
         let maxpos = max(colpos)
         let minpos = min(colpos)
 
@@ -44,7 +44,7 @@ function! s:AlignWhitespaceCols (first_line, last_line)
         if !aligned && minpos != maxpos
             for linenum in range(len(column))
                 let aligned_lines[linenum]
-                \   = printf("%-*s%s",
+                \   = printf("%-*S%S",
                  \           maxpos, aligned_lines[linenum], column[linenum])
             endfor
             let aligned = 1
@@ -69,12 +69,12 @@ function! s:AlignPatternCols (first_line, last_line, separator, pattern)
     while 1
         " Get next column to be added, if any...
         let column = map(copy(lines), 'get(v:val,colnum,"")')
-        if max(map(copy(column), 'strlen(v:val)')) == 0
+        if max(map(copy(column), 'strdisplaywidth(v:val)')) == 0
             break
         endif
 
         " Work out alignment...
-        let colpos = map(copy(aligned_lines), 'strlen(v:val)')
+        let colpos = map(copy(aligned_lines), 'strdisplaywidth(v:val)')
         let maxpos = max(colpos)
         let minpos = min(colpos)
 
@@ -82,7 +82,7 @@ function! s:AlignPatternCols (first_line, last_line, separator, pattern)
         if !aligned && minpos != maxpos
             for linenum in range(len(column))
                 let aligned_lines[linenum]
-                \   = printf("%-*s%s%s",
+                \   = printf("%-*S%S%S",
                  \           maxpos, aligned_lines[linenum],
                   \          a:separator, column[linenum])
             endfor

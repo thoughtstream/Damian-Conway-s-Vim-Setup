@@ -69,9 +69,26 @@ function! ForAllMatches (command, options)
     endif
 
     " Identify the lines to be operated on...
-    exec 'silent lvimgrep /' . sensitive . @/ . '/j %'
-    let matched_line_nums
-    \ = reverse(filter(map(getloclist(0), 'v:val.lnum'), 'start_line <= v:val && v:val <= end_line'))
+"    exec 'silent lvimgrep /' . sensitive . @/ . '/j %'
+"    let matched_line_nums
+"    \ = reverse(filter(map(getloclist(0), 'v:val.lnum'), 'start_line <= v:val && v:val <= end_line'))
+    let matched_line_nums = []
+    let prev_pos = getcurpos()
+    call setpos('.', [0,1,1,0])
+    let from_line = search(@/, "Wc")
+    while from_line > 0
+        let to_line = search(@/, "Wce")
+        call extend(matched_line_nums, range(from_line, to_line))
+        if to_line < line('$')
+            call setpos('.', [0,to_line+1,1,0])
+            let from_line = search(@/, "Wc")
+        else
+            let from_line = 0
+        endif
+    endwhile
+    call setpos('.',prev_pos)
+    let matched_line_nums = reverse(matched_line_nums)
+
 
     " Invert the list of lines, if requested...
     if inverted

@@ -15,8 +15,8 @@ set cpo&vim
 
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-"  Make it easy to navigate arglists, quickfixes, vimgreps, and multiple tabs
-"  using the arrow keys
+"  Make it easy to navigate arglists, quickfixes, vimgreps, multiple tabs,
+"  and changes using the arrow keys
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -24,7 +24,7 @@ set cpo&vim
 
 " <UP> and <DOWN> jump to next file in the argument list,
 " or (if there is no next file) to the next buffer in the quickfix or location list...
-"
+
 nmap <silent>  <UP>            :call ArrNav_PREV_FILE()<CR>
 nmap <silent>  <DOWN>          :call ArrNav_NEXT_FILE()<CR>
 

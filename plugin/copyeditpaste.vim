@@ -20,10 +20,10 @@ function! _CEP_setup (proc)
     let tempfile = tempname()
     exec "edit " . tempfile
     normal "+p
+    %s/ / /ge
     let procfront = 'tell application "System Events" to set frontmost of application process "'
                  \. a:proc . '" to true'
-"    exec 'nnoremap ZZ VggoG"+y:!rm %<CR>:!osascript -e ''' . procfront . "'<CR>ZZ"
-    exec 'nnoremap <buffer> ZZ VggoG"+y:!osascript -e ''' . procfront . "'<CR>ZZ"
+    exec 'nnoremap <buffer> ZZ :w! ~/tmp/last_copyeditpaste<CR>:%yank +<CR>:%yank c<CR>:!osascript -e ''' . procfront . "'<CR>ZZ"
 endfunction
 
 " Restore previous external compatibility options
