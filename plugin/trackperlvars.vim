@@ -389,7 +389,10 @@ function! TPV_track_perl_var ()
     endif
 
     " Remove previous highlighting...
-    try | call matchdelete(s:match_id) | catch /./ | endtry
+    try
+        call matchdelete(s:match_id)
+    catch /./
+    endtry
 
     " Locate a var under cursor...
     let cursline = getline('.')
